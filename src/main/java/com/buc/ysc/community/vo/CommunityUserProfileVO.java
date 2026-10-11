@@ -4,6 +4,7 @@ package com.buc.ysc.community.vo;
 public class CommunityUserProfileVO {
     private String usrId;
     private String usrNm;
+    private String userName;
     private Long profileImageFilSeq;
     private long postCount;
     private long followerCount;
@@ -14,6 +15,8 @@ public class CommunityUserProfileVO {
     public void setUsrId(String usrId) { this.usrId = usrId; }
     public String getUsrNm() { return usrNm; }
     public void setUsrNm(String usrNm) { this.usrNm = usrNm; }
+    public String getUserName() { return userName; }
+    public void setUserName(String userName) { this.userName = userName; }
     public Long getProfileImageFilSeq() { return profileImageFilSeq; }
     public void setProfileImageFilSeq(Long profileImageFilSeq) { this.profileImageFilSeq = profileImageFilSeq; }
     public long getPostCount() { return postCount; }

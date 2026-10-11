@@ -29,6 +29,7 @@
     <select id="selectUserProfile" resultType="com.buc.ysc.community.vo.CommunityUserProfileVO">
         SELECT U.USR_ID AS usrId
              , U.NCK_NM AS usrNm
+             , U.USR_NM AS userName
              , U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
              , (SELECT COUNT(*) FROM TB_COMM_POST P WHERE P.USR_ID = U.USR_ID AND P.POST_STAT = #{postActive}) AS postCount
              , (SELECT COUNT(*) FROM TB_COMM_FOLLOW F WHERE F.FOLLOWING_USR_ID = U.USR_ID AND F.FOLLOW_STAT = #{followAccepted}) AS followerCount
