@@ -100,8 +100,8 @@
         FROM TB_USR U
         WHERE U.USR_ID &lt;&gt; #{usrId}
           AND (
-              U.USR_ID ILIKE '%' || #{query} || '%'
-              OR U.NCK_NM ILIKE '%' || #{query} || '%'
+              U.NCK_NM ILIKE '%' || #{query} || '%'
+              OR U.USR_NM ILIKE '%' || #{query} || '%'
           )
           AND (
               #{userFilter} = 'discover'
