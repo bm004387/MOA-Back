@@ -26,7 +26,7 @@ import java.util.UUID;
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
 
-    private static final long MAX_FILE_SIZE = 10L * 1024 * 1024;
+    private static final long MAX_FILE_SIZE = 100L * 1024 * 1024;
     private static final Logger log = LoggerFactory.getLogger(FileStorageServiceImpl.class);
 
     private final FileMapper fileMapper;
