@@ -129,6 +129,12 @@ public class SessionManager {
         }
     }
 
+    /** 현재 로그인 세션의 표시 이름을 닉네임으로 갱신합니다. */
+    public void updateDisplayName(String token, String displayName) {
+        if (token == null || token.isBlank()) return;
+        redisTemplate.opsForHash().put(getRedisKey(token), "usrNm", displayName);
+    }
+
     /**
      * 로그아웃
      *

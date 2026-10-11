@@ -28,7 +28,7 @@
     <!-- 선택한 사용자의 프로필 통계와 현재 로그인 사용자의 팔로우 상태를 조회합니다. -->
     <select id="selectUserProfile" resultType="com.buc.ysc.community.vo.CommunityUserProfileVO">
         SELECT U.USR_ID AS usrId
-             , U.USR_NM AS usrNm
+             , U.NCK_NM AS usrNm
              , U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
              , (SELECT COUNT(*) FROM TB_COMM_POST P WHERE P.USR_ID = U.USR_ID AND P.POST_STAT = #{postActive}) AS postCount
              , (SELECT COUNT(*) FROM TB_COMM_FOLLOW F WHERE F.FOLLOWING_USR_ID = U.USR_ID AND F.FOLLOW_STAT = #{followAccepted}) AS followerCount
@@ -87,7 +87,7 @@
     <!-- 계정 테이블에서 직접 검색하여 게시물이 없는 사용자도 조회합니다. -->
     <select id="searchUsers" resultType="com.buc.ysc.community.vo.CommunityUserSearchVO">
         SELECT U.USR_ID AS usrId
-             , U.USR_NM AS usrNm
+             , U.NCK_NM AS usrNm
              , U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
              , (SELECT COUNT(*) FROM TB_COMM_POST P WHERE P.USR_ID = U.USR_ID AND P.POST_STAT = #{postActive}) AS postCount
              , EXISTS (
@@ -101,7 +101,7 @@
         WHERE U.USR_ID &lt;&gt; #{usrId}
           AND (
               U.USR_ID ILIKE '%' || #{query} || '%'
-              OR U.USR_NM ILIKE '%' || #{query} || '%'
+              OR U.NCK_NM ILIKE '%' || #{query} || '%'
           )
           AND (
               #{userFilter} = 'discover'
@@ -126,14 +126,14 @@
                   )
               )
           )
-        ORDER BY U.USR_NM, U.USR_ID
+        ORDER BY U.NCK_NM, U.USR_ID
         LIMIT #{limit}
     </select>
 
     <!-- 팔로워·팔로잉 목록과 현재 사용자가 해당 계정을 팔로우하는지 조회합니다. -->
     <select id="selectFollowUsers" resultType="com.buc.ysc.community.vo.CommunityUserSearchVO">
         SELECT U.USR_ID AS usrId
-             , U.USR_NM AS usrNm
+             , U.NCK_NM AS usrNm
              , U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
              , (
                    SELECT COUNT(*)
@@ -159,7 +159,7 @@
               (#{relationType} = 'followers' AND F.FOLLOWING_USR_ID = #{usrId})
               OR (#{relationType} = 'following' AND F.FOLLOWER_USR_ID = #{usrId})
           )
-        ORDER BY U.USR_NM, U.USR_ID
+        ORDER BY U.NCK_NM, U.USR_ID
         LIMIT #{limit}
     </select>
 
@@ -167,7 +167,7 @@
     <select id="searchPosts" resultType="com.buc.ysc.community.vo.CommunityPostRowVO">
         SELECT P.POST_SEQ AS postSeq
              , P.USR_ID AS authorId
-             , U.USR_NM AS authorName
+             , U.NCK_NM AS authorName
              , U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
              , P.POST_CN AS content
              , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS createdAt
@@ -192,7 +192,7 @@
               COALESCE(P.POST_TTL, '') ILIKE '%' || #{query} || '%'
               OR P.POST_CN ILIKE '%' || #{query} || '%'
               OR P.USR_ID ILIKE '%' || #{query} || '%'
-              OR U.USR_NM ILIKE '%' || #{query} || '%'
+              OR U.NCK_NM ILIKE '%' || #{query} || '%'
           )
           AND (
               P.VIS_TYP = #{publicVisibility}
@@ -261,7 +261,7 @@
         SELECT
                P.POST_SEQ AS postSeq
             ,  P.USR_ID AS authorId
-            ,  U.USR_NM AS authorName
+            ,  U.NCK_NM AS authorName
             ,  U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
             ,  P.POST_CN AS content
             ,  to_char(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS createdAt
@@ -423,7 +423,7 @@
                C.CMT_SEQ AS cmtSeq
             ,  C.PARENT_CMT_SEQ AS parentCmtSeq
             ,  C.USR_ID AS usrId
-            ,  U.USR_NM AS usrNm
+            ,  U.NCK_NM AS usrNm
             ,  U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
             ,  C.CMT_CN AS cmtCn
             ,  TO_CHAR(C.CMT_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS cmtDtm
@@ -452,7 +452,7 @@
                 ,  C.CMT_SEQ AS cmtSeq
                 ,  C.PARENT_CMT_SEQ AS parentCmtSeq
                 ,  C.USR_ID AS usrId
-                ,  U.USR_NM AS usrNm
+                ,  U.NCK_NM AS usrNm
                 ,  U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
                 ,  C.CMT_CN AS cmtCn
                 ,  TO_CHAR(C.CMT_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS cmtDtm

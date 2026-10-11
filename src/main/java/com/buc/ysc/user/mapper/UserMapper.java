@@ -22,6 +22,8 @@ public interface UserMapper {
 
     int updateAddress(UserVO user);
 
+    int updateNickname(UserVO user);
+
     int updateProfileImageFileSeq(UserVO user);
 
 }

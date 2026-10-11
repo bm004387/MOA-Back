@@ -70,7 +70,8 @@ public class AuthServiceImpl implements AuthService {
         user.setUsrId(request.usrId());
         // 입력받은 비밀번호를 Bcrypt로 암호화
         user.setPwd(passwordEncoder.encode(request.pwd()));
-        user.setUsrNm(request.usrNm());
+        user.setUsrNm(request.nckNm());
+        user.setNckNm(request.nckNm());
         user.setRol(commonCodeUtil.getCodeName("ROL", "001"));
         user.setHpNo(request.hpNo());
         user.setAdr(request.adr());
@@ -115,11 +116,11 @@ public class AuthServiceImpl implements AuthService {
         }
 
         UserSession session = new UserSession(
-                user.getUsrId(), user.getUsrNm(), user.getRol(),
+                user.getUsrId(), displayName(user), user.getRol(),
                 user.getHpNo(), user.getAdr(), user.getDtlAdr());
         String accessToken = sessionManager.createSession(session, false);
         UserInfoResponse userInfo = new UserInfoResponse(
-                user.getUsrId(), user.getUsrNm(), user.getRol(),
+                user.getUsrId(), displayName(user), user.getRol(),
                 user.getHpNo(), user.getAdr(), user.getDtlAdr());
         return new LoginResponse(accessToken, "Bearer", sessionManager.getExpiresInSeconds(false), userInfo);
     }
@@ -145,7 +146,7 @@ public class AuthServiceImpl implements AuthService {
 
         UserSession session = new UserSession(
                 user.getUsrId(),
-                user.getUsrNm(),
+                displayName(user),
                 user.getRol(),
                 user.getHpNo(),
                 user.getAdr(),
@@ -161,7 +162,7 @@ public class AuthServiceImpl implements AuthService {
         }
         UserInfoResponse userInfo = new UserInfoResponse(
                 user.getUsrId(),
-                user.getUsrNm(),
+                displayName(user),
                 user.getRol(),
                 user.getHpNo(),
                 user.getAdr(),
@@ -225,5 +226,11 @@ public class AuthServiceImpl implements AuthService {
 
     private String normalizePhone(String hpNo) {
         return hpNo.replaceAll("[^0-9]", "");
+    }
+
+    private String displayName(UserVO user) {
+        return user.getNckNm() == null || user.getNckNm().isBlank()
+                ? user.getUsrNm()
+                : user.getNckNm();
     }
 }

@@ -11,6 +11,7 @@ import com.buc.ysc.user.vo.request.PasswordChangeRequest;
 import com.buc.ysc.user.vo.request.PasswordVerifyRequest;
 import com.buc.ysc.user.vo.request.UserVO;
 import com.buc.ysc.user.vo.request.PinChangeRequest;
+import com.buc.ysc.user.vo.request.NicknameChangeRequest;
 import com.buc.ysc.user.vo.response.UserProfileResponse;
 import com.buc.ysc.util.MsgUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -125,6 +126,26 @@ public class UserController {
         userMapper.updateAddress(update);
         sessionManager.updateAddress(token, body.adr().trim(), body.dtlAdr() == null ? "" : body.dtlAdr().trim());
         return ResponseEntity.ok(java.util.Map.of("message", msgUtil.getMsg("MYINFO", "004")));
+    }
+
+    /** 로그인한 사용자의 닉네임을 변경합니다. */
+    @PutMapping("/me/nickname")
+    public ResponseEntity<?> changeNickname(
+            HttpServletRequest request,
+            @Valid @RequestBody NicknameChangeRequest body) {
+        String token = tokenFrom(request);
+        UserSession session = requireSession(token);
+        String nickname = body.nckNm().trim();
+
+        UserVO update = new UserVO();
+        update.setUsrId(session.usrId());
+        update.setNckNm(nickname);
+        update.setSystemUserId(session.usrId());
+        if (userMapper.updateNickname(update) != 1) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, msgUtil.getMsg("MYINFO", "010"));
+        }
+        sessionManager.updateDisplayName(token, nickname);
+        return ResponseEntity.ok(java.util.Map.of("nckNm", nickname));
     }
 
     @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

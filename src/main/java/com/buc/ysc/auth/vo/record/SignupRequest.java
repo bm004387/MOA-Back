@@ -16,7 +16,7 @@ public record SignupRequest(
 
         @NotBlank
         @Size(max = 100)
-        String usrNm,
+        String nckNm,
 
         @NotBlank
         @Pattern(

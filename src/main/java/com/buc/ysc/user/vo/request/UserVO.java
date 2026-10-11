@@ -13,6 +13,7 @@ public class UserVO extends CommonVO {
     private String pwd;          /* 비밀번호 */
     private String pinPwd;        /* BCrypt 암호화 PIN 비밀번호 */
     private String usrNm;          /* 사용자명 */
+    private String nckNm;          /* 닉네임 */
     private String rol;            /* 권한 */
     private String hpNo;            /* 핸드폰번호 */
     private String adr;            /* 주소 */

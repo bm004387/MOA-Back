@@ -8,6 +8,7 @@
              , PWD
              , PIN_PWD
              , USR_NM
+             , NCK_NM
              , HP_NO
              , ROL
              , ADR
@@ -58,6 +59,7 @@
                      USR_ID            /* 사용자아이디 */
                    , PWD               /* 비밀번호 */
                    , USR_NM            /* 사용자명 */
+                   , NCK_NM            /* 닉네임 */
                    , HP_NO             /* 전화번호 */
                    , ADR               /* 주소 */
                    , DTL_ADR           /* 상세주소 */
@@ -72,6 +74,7 @@
                      #{usrId}
                    , #{pwd}
                    , #{usrNm}
+                   , #{nckNm}
                    , #{hpNo}
                    , #{adr}
                    , #{dtlAdr}
@@ -103,6 +106,15 @@
     <update id="updateAddress">
         UPDATE TB_USR
            SET ADR = #{adr}, DTL_ADR = #{dtlAdr}, LAST_MOD_USER_ID = #{lastModUserId}, LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
+         WHERE USR_ID = #{usrId}
+    </update>
+
+    <!-- 사용자의 닉네임을 변경합니다. -->
+    <update id="updateNickname" parameterType="com.buc.ysc.user.vo.request.UserVO">
+        UPDATE TB_USR
+           SET NCK_NM = #{nckNm}
+             , LAST_MOD_USER_ID = #{lastModUserId}
+             , LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
          WHERE USR_ID = #{usrId}
     </update>
 
