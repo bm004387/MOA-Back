@@ -24,21 +24,15 @@ public class PushTokenController {
 
     /** 현재 로그인한 사용자의 기기 토큰을 저장합니다. */
     @PostMapping
-    public Map<String, Boolean> register(
-            HttpServletRequest request,
-            @Valid @RequestBody PushTokenRequest body) {
-        pushNotificationService.registerToken(
-                request.getHeader("Authorization"), body.token(), body.platform());
+    public Map<String, Boolean> register(HttpServletRequest request, @Valid @RequestBody PushTokenRequest body) {
+        pushNotificationService.registerToken(request.getHeader("Authorization"), body.token(), body.platform());
         return Map.of("success", true);
     }
 
     /** 로그아웃하는 기기의 토큰을 현재 사용자 계정에서 삭제합니다. */
     @DeleteMapping
-    public Map<String, Boolean> unregister(
-            HttpServletRequest request,
-            @Valid @RequestBody PushTokenRequest body) {
-        pushNotificationService.unregisterToken(
-                request.getHeader("Authorization"), body.token());
+    public Map<String, Boolean> unregister(HttpServletRequest request, @Valid @RequestBody PushTokenRequest body) {
+        pushNotificationService.unregisterToken(request.getHeader("Authorization"), body.token());
         return Map.of("success", true);
     }
 }

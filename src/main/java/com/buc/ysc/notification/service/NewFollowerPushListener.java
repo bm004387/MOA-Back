@@ -17,7 +17,6 @@ public class NewFollowerPushListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNewFollower(NewFollowerEvent event) {
-        pushNotificationService.sendNewFollower(
-                event.targetUsrId(), event.followerUsrId(), event.followerName());
+        pushNotificationService.sendNewFollower(event.targetUsrId(), event.followerUsrId(), event.followerName());
     }
 }

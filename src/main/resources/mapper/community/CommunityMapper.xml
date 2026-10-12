@@ -521,25 +521,25 @@
             ,  FRST_REG_USER_ID
         )
         VALUES (
-            #{command.postSeq}
-            ,  #{command.usrId}
-            ,  #{command.parentCmtSeq}
-            ,  #{command.commentContent}
+            #{postSeq}
+            ,  #{usrId}
+            ,  #{parentCmtSeq}
+            ,  #{commentContent}
             ,  'ACTIVE'
             ,  CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul'
-            ,  #{command.frstRegUserId}
+            ,  #{frstRegUserId}
         )
     </insert>
 
     <!-- 작성자 ID와 게시물 ID가 일치하는 댓글만 수정합니다. -->
     <update id="updateComment">
         UPDATE TB_COMM_CMT
-           SET CMT_CN = #{command.commentContent}
-            ,  LAST_MOD_USER_ID = #{command.userId}
+           SET CMT_CN = #{commentContent}
+            ,  LAST_MOD_USER_ID = #{userId}
             ,  LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
-        WHERE CMT_SEQ = #{command.cmtSeq}
-          AND POST_SEQ = #{command.postSeq}
-          AND USR_ID = #{command.usrId}
+        WHERE CMT_SEQ = #{cmtSeq}
+          AND POST_SEQ = #{postSeq}
+          AND USR_ID = #{usrId}
           AND CMT_STAT = 'ACTIVE'
     </update>
 
@@ -547,11 +547,11 @@
     <update id="deleteComment">
         UPDATE TB_COMM_CMT
            SET CMT_STAT = 'DELETED'
-            ,  LAST_MOD_USER_ID = #{command.usrId}
+            ,  LAST_MOD_USER_ID = #{usrId}
             ,  LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
-        WHERE CMT_SEQ = #{command.cmtSeq}
-          AND POST_SEQ = #{command.postSeq}
-          AND USR_ID = #{command.usrId}
+        WHERE CMT_SEQ = #{cmtSeq}
+          AND POST_SEQ = #{postSeq}
+          AND USR_ID = #{usrId}
           AND CMT_STAT = 'ACTIVE'
     </update>
 
@@ -564,10 +564,10 @@
             ,  FRST_REG_USER_ID
         )
         VALUES (
-            #{command.usrId}
-            ,  #{command.postSeq}
+            #{usrId}
+            ,  #{postSeq}
             ,  CURRENT_TIMESTAMP
-            ,  #{command.frstRegUserId}
+            ,  #{frstRegUserId}
         )
         ON CONFLICT (USR_ID, POST_SEQ) DO NOTHING
     </insert>
@@ -580,9 +580,9 @@
             ,  FRST_REG_USER_ID
         )
         VALUES (
-            #{command.postSeq}
-            ,  #{command.usrId}
-            ,  #{command.frstRegUserId}
+            #{postSeq}
+            ,  #{usrId}
+            ,  #{frstRegUserId}
         )
         ON CONFLICT DO NOTHING
     </insert>
@@ -590,8 +590,8 @@
     <!-- 사용자의 게시물 좋아요를 취소합니다. -->
     <delete id="removeLike">
         DELETE FROM TB_COMM_POST_LIKE
-        WHERE POST_SEQ = #{command.postSeq}
-          AND USR_ID = #{command.usrId}
+        WHERE POST_SEQ = #{postSeq}
+          AND USR_ID = #{usrId}
     </delete>
 
     <!-- 게시물 저장 표시를 중복 없이 등록합니다. -->
@@ -602,9 +602,9 @@
             ,  FRST_REG_USER_ID
         )
         VALUES (
-            #{command.postSeq}
-            ,  #{command.usrId}
-            ,  #{command.frstRegUserId}
+            #{postSeq}
+            ,  #{usrId}
+            ,  #{frstRegUserId}
         )
         ON CONFLICT DO NOTHING
     </insert>
@@ -612,8 +612,8 @@
     <!-- 사용자의 게시물 저장 표시를 취소합니다. -->
     <delete id="removeSave">
         DELETE FROM TB_COMM_POST_SAVE
-        WHERE POST_SEQ = #{command.postSeq}
-          AND USR_ID = #{command.usrId}
+        WHERE POST_SEQ = #{postSeq}
+          AND USR_ID = #{usrId}
     </delete>
 
     <!-- 파일 요청 사용자가 게시물 공개 범위에 포함되는지 확인합니다. -->

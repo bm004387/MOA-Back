@@ -1,7 +1,6 @@
 package com.buc.ysc.user.mapper;
 
 import com.buc.ysc.user.vo.request.UserVO;
-import org.apache.ibatis.annotations.Param;
 
 public interface UserMapper {
 

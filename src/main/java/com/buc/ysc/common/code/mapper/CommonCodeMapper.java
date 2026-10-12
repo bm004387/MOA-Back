@@ -3,7 +3,6 @@ package com.buc.ysc.common.code.mapper;
 import com.buc.ysc.common.code.vo.CommonCodeVO;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 /** 공통코드 분류와 상세 값을 조회합니다. */
 @Mapper
@@ -14,6 +13,6 @@ public interface CommonCodeMapper {
 
     /** 분류코드와 상세코드로 공통코드 한 건을 조회합니다. */
     CommonCodeVO selectCode(
-            @Param("comCd") String comCd,
-            @Param("comDtlCd") String comDtlCd);
+            String comCd,
+            String comDtlCd);
 }
