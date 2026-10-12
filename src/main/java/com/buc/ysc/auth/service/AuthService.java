@@ -14,6 +14,7 @@ import com.buc.ysc.auth.vo.record.RecoveryPasswordVerifyRequest;
 import com.buc.ysc.auth.vo.record.PasswordResetRequest;
 import com.buc.ysc.auth.vo.response.SmsResponse;
 import com.buc.ysc.auth.vo.response.RecoveryIdResponse;
+import com.buc.ysc.auth.vo.response.UserInfoResponse;
 
 public interface AuthService {
 
