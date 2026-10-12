@@ -1,8 +1,7 @@
 package com.buc.ysc.common.menu;
 
-import com.buc.ysc.util.CommonCodeUtil;
-import com.buc.ysc.common.menu.mapper.MenuMapper;
 import com.buc.ysc.common.menu.vo.MenuVO;
+import com.buc.ysc.common.menu.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,16 +14,15 @@ import java.util.List;
 @RequestMapping("/api/menu")
 public class MenuController {
 
-    private final MenuMapper menuMapper;
-    private final CommonCodeUtil commonCodeUtil;
+    private final MenuService menuService;
 
     @GetMapping(value = "/bottom", produces = "application/json; charset=UTF-8")
     public List<MenuVO> getBottomMenuList() {
-        return menuMapper.getBottomMenuList(commonCodeUtil.getCodeName("MENU_TYP", "002"));
+        return menuService.getBottomMenuList();
     }
 
     @GetMapping(value = "/all", produces = "application/json; charset=UTF-8")
     public List<MenuVO> getAllMenuList() {
-        return menuMapper.getAllMenuList();
+        return menuService.getAllMenuList();
     }
 }

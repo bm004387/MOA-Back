@@ -172,7 +172,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     private String directoryCodeFor(String fileCode) {
         if (fileCode != null && fileCode.matches("[0-9]{1,20}")) return fileCode;
         // 이전 배포의 프로필 코드를 새 디렉터리 코드에 연결합니다.
-        if ("PROFILE".equalsIgnoreCase(fileCode)) return commonCodeUtil.getCodeName("FIL_CD", "002");
+        if ("PROFILE".equalsIgnoreCase(fileCode)) return "002";
         return null;
     }
 
@@ -212,9 +212,9 @@ public class FileStorageServiceImpl implements FileStorageService {
                 ? "application/octet-stream"
                 : contentType;
         try {
-            return commonCodeUtil.getCodeNameByValue("CONT_TYP", value);
+            return commonCodeUtil.getDetailCode("CONT_TYP", value);
         } catch (IllegalArgumentException exception) {
-            return commonCodeUtil.getCodeNameByValue("CONT_TYP", "application/octet-stream");
+            return commonCodeUtil.getDetailCode("CONT_TYP", "application/octet-stream");
         }
     }
 }

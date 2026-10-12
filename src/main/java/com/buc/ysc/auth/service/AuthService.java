@@ -36,4 +36,8 @@ public interface AuthService {
     SmsResponse verifyPasswordRecoveryCode(RecoveryPasswordVerifyRequest request);
 
     SmsResponse resetPassword(PasswordResetRequest request);
+
+    String logout(String authorizationHeader);
+
+    UserInfoResponse validateSession(String authorizationHeader);
 }

@@ -2,8 +2,6 @@ package com.buc.ysc.notification.controller;
 
 import com.buc.ysc.notification.service.PushNotificationService;
 import com.buc.ysc.notification.vo.PushTokenRequest;
-import com.buc.ysc.security.SessionManager;
-import com.buc.ysc.security.UserSession;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Map;
@@ -18,13 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/notifications/devices")
 public class PushTokenController {
 
-    private final SessionManager sessions;
     private final PushNotificationService pushNotificationService;
 
-    public PushTokenController(
-            SessionManager sessions,
-            PushNotificationService pushNotificationService) {
-        this.sessions = sessions;
+    public PushTokenController(PushNotificationService pushNotificationService) {
         this.pushNotificationService = pushNotificationService;
     }
 
@@ -33,8 +27,8 @@ public class PushTokenController {
     public Map<String, Boolean> register(
             HttpServletRequest request,
             @Valid @RequestBody PushTokenRequest body) {
-        UserSession user = session(request);
-        pushNotificationService.registerToken(user.usrId(), body.token(), body.platform());
+        pushNotificationService.registerToken(
+                request.getHeader("Authorization"), body.token(), body.platform());
         return Map.of("success", true);
     }
 
@@ -43,21 +37,8 @@ public class PushTokenController {
     public Map<String, Boolean> unregister(
             HttpServletRequest request,
             @Valid @RequestBody PushTokenRequest body) {
-        UserSession user = session(request);
-        pushNotificationService.unregisterToken(user.usrId(), body.token());
+        pushNotificationService.unregisterToken(
+                request.getHeader("Authorization"), body.token());
         return Map.of("success", true);
-    }
-
-    private UserSession session(HttpServletRequest request) {
-        String authorization = request.getHeader("Authorization");
-        String token = authorization != null && authorization.startsWith("Bearer ")
-                ? authorization.substring(7)
-                : null;
-        UserSession user = sessions.getSession(token);
-        if (user == null) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-        }
-        return user;
     }
 }

@@ -20,7 +20,6 @@ import com.buc.ysc.auth.vo.record.RecoveryPasswordVerifyRequest;
 import com.buc.ysc.auth.vo.record.PasswordResetRequest;
 import com.buc.ysc.auth.vo.response.RecoveryIdResponse;
 import com.buc.ysc.auth.service.SmsService;
-import com.buc.ysc.util.CommonCodeUtil;
 import com.buc.ysc.user.vo.request.UserVO;
 import com.buc.ysc.util.MsgUtil;
 import org.springframework.http.HttpStatus;
@@ -37,20 +36,48 @@ public class AuthServiceImpl implements AuthService {
     private final MsgUtil msgUtil;
     private final PinLoginThrottle pinLoginThrottle;
     private final SmsService smsService;
-    private final CommonCodeUtil commonCodeUtil;
 
 
     public AuthServiceImpl(UserMapper userMapper, PasswordEncoder passwordEncoder,
                            SessionManager sessionManager, MsgUtil msgUtil,
-                           PinLoginThrottle pinLoginThrottle, SmsService smsService,
-                           CommonCodeUtil commonCodeUtil) {
+                           PinLoginThrottle pinLoginThrottle, SmsService smsService) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.sessionManager = sessionManager;
         this.msgUtil = msgUtil;
         this.pinLoginThrottle = pinLoginThrottle;
         this.smsService = smsService;
-        this.commonCodeUtil = commonCodeUtil;
+    }
+
+    /** 로그인 세션을 제거하고 로그아웃 메시지를 반환합니다. */
+    @Override
+    public String logout(String authorizationHeader) {
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String token = authorizationHeader.substring(7);
+            UserSession session = sessionManager.getSession(token);
+            if (session != null) {
+                sessionManager.deleteSession(token);
+                sessionManager.deleteAllSessionsForUser(session.usrId());
+            } else {
+                sessionManager.deleteSession(token);
+            }
+        }
+        return msgUtil.getMsg("AUTH", "002");
+    }
+
+    /** Authorization 헤더의 Redis 세션을 조회해 사용자 정보를 반환합니다. */
+    @Override
+    public UserInfoResponse validateSession(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        UserSession session = sessionManager.getSession(authorizationHeader.substring(7));
+        if (session == null) {
+            return null;
+        }
+        return new UserInfoResponse(
+                session.usrId(), session.usrNm(), session.rol(), session.hpNo(),
+                session.adr(), session.dtlAdr());
     }
 
 
@@ -72,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPwd(passwordEncoder.encode(request.pwd()));
         user.setUsrNm(request.nckNm());
         user.setNckNm(request.nckNm());
-        user.setRol(commonCodeUtil.getCodeName("ROL", "001"));
+        user.setRol("001");
         user.setHpNo(request.hpNo());
         user.setAdr(request.adr());
         user.setDtlAdr(request.dtlAdr());

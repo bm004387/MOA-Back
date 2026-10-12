@@ -1,6 +1,5 @@
 package com.buc.ysc.community.controller;
 
-import com.buc.ysc.community.mapper.CommunityMapper;
 import com.buc.ysc.community.service.CommunityService;
 import com.buc.ysc.community.vo.CommunityPostCommandVO;
 import com.buc.ysc.community.vo.CommunityPost;
@@ -8,17 +7,12 @@ import com.buc.ysc.community.vo.CommunityCommentPreviewVO;
 import com.buc.ysc.community.vo.CommunityProfileSummaryVO;
 import com.buc.ysc.community.vo.CommunityUserProfileVO;
 import com.buc.ysc.community.vo.CommunityUserSearchVO;
-import com.buc.ysc.util.CommonCodeUtil;
-import com.buc.ysc.file.service.FileStorageService;
-import com.buc.ysc.file.vo.StoredFile;
-import com.buc.ysc.security.SessionManager;
-import com.buc.ysc.security.UserSession;
+import com.buc.ysc.community.vo.CommunityFileResourceVO;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,29 +26,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 /** 커뮤니티 피드와 게시물 요청을 처리하는 REST 컨트롤러입니다. */
 @RestController
 @RequestMapping("/api/community")
 public class CommunityController {
     private final CommunityService service;
-    private final SessionManager sessions;
-    private final CommunityMapper mapper;
-    private final FileStorageService fileStorage;
-    private final CommonCodeUtil commonCodeUtil;
-
-    public CommunityController(
-            CommunityService service,
-            SessionManager sessions,
-            CommunityMapper mapper,
-            FileStorageService fileStorage,
-            CommonCodeUtil commonCodeUtil) {
+    public CommunityController(CommunityService service) {
         this.service = service;
-        this.sessions = sessions;
-        this.mapper = mapper;
-        this.fileStorage = fileStorage;
-        this.commonCodeUtil = commonCodeUtil;
     }
 
     /** 선택한 피드 종류의 게시물을 조회합니다. */
@@ -63,13 +42,13 @@ public class CommunityController {
             HttpServletRequest request,
             @RequestParam(defaultValue = "recommended") String type,
             @RequestParam(defaultValue = "20") int limit) {
-        return service.feed(session(request).usrId(), type, limit);
+        return service.feed(service.requireSession(request.getHeader("Authorization")).usrId(), type, limit);
     }
 
     /** 로그인 사용자의 게시물·팔로워·팔로잉 수를 조회합니다. */
     @GetMapping("/profile/summary")
     public CommunityProfileSummaryVO profileSummary(HttpServletRequest request) {
-        return service.profileSummary(session(request).usrId());
+        return service.profileSummary(service.requireSession(request.getHeader("Authorization")).usrId());
     }
 
     /** 로그인 사용자의 팔로워 또는 팔로잉 목록을 조회합니다. */
@@ -78,7 +57,7 @@ public class CommunityController {
             HttpServletRequest request,
             @RequestParam String type,
             @RequestParam(defaultValue = "100") int limit) {
-        return service.followUsers(session(request).usrId(), type, limit);
+        return service.followUsers(service.requireSession(request.getHeader("Authorization")).usrId(), type, limit);
     }
 
     /** 게시물 작성자의 프로필과 로그인 사용자의 팔로우 상태를 조회합니다. */
@@ -86,7 +65,7 @@ public class CommunityController {
     public CommunityUserProfileVO userProfile(
             HttpServletRequest request,
             @PathVariable String usrId) {
-        return service.userProfile(session(request).usrId(), usrId);
+        return service.userProfile(service.requireSession(request.getHeader("Authorization")).usrId(), usrId);
     }
 
     /** 게시물 작성자의 공개 가능한 게시물 목록을 조회합니다. */
@@ -94,7 +73,7 @@ public class CommunityController {
     public List<CommunityPost> userPosts(
             HttpServletRequest request,
             @PathVariable String usrId) {
-        return service.userPosts(session(request).usrId(), usrId);
+        return service.userPosts(service.requireSession(request.getHeader("Authorization")).usrId(), usrId);
     }
 
     /** 로그인 사용자의 팔로우 상태를 변경합니다. */
@@ -103,8 +82,7 @@ public class CommunityController {
             HttpServletRequest request,
             @PathVariable String usrId,
             @RequestBody Toggle body) {
-        UserSession user = session(request);
-        service.setFollow(user.usrId(), user.usrNm(), usrId, body.enabled());
+        service.setFollowForSession(request.getHeader("Authorization"), usrId, body.enabled());
         return Map.of("success", true);
     }
 
@@ -113,7 +91,7 @@ public class CommunityController {
     public Map<String, Boolean> removeFollower(
             HttpServletRequest request,
             @PathVariable String usrId) {
-        service.removeFollower(session(request).usrId(), usrId);
+        service.removeFollower(service.requireSession(request.getHeader("Authorization")).usrId(), usrId);
         return Map.of("success", true);
     }
 
@@ -123,7 +101,7 @@ public class CommunityController {
             HttpServletRequest request,
             @RequestParam String query,
             @RequestParam(defaultValue = "50") int limit) {
-        return service.searchPosts(session(request).usrId(), query, limit);
+        return service.searchPosts(service.requireSession(request.getHeader("Authorization")).usrId(), query, limit);
     }
 
     /** 게시물이 없는 계정도 포함해 계정 ID와 이름으로 검색합니다. */
@@ -133,7 +111,7 @@ public class CommunityController {
             @RequestParam String query,
             @RequestParam(defaultValue = "discover") String filter,
             @RequestParam(defaultValue = "50") int limit) {
-        return service.searchUsers(session(request).usrId(), query, filter, limit);
+        return service.searchUsers(service.requireSession(request.getHeader("Authorization")).usrId(), query, filter, limit);
     }
 
     /** 여러 게시물별 최신 댓글 두 건을 한 번에 반환합니다. */
@@ -141,7 +119,7 @@ public class CommunityController {
     public List<CommunityCommentPreviewVO> commentPreviews(
             HttpServletRequest request,
             @RequestParam("postSeq") List<Long> postSeqs) {
-        return service.commentPreviews(session(request).usrId(), postSeqs);
+        return service.commentPreviews(service.requireSession(request.getHeader("Authorization")).usrId(), postSeqs);
     }
 
     /** 게시물의 댓글 목록을 반환합니다. */
@@ -149,7 +127,7 @@ public class CommunityController {
     public List<CommunityPost.CommunityComment> comments(
             HttpServletRequest request,
             @PathVariable Long postSeq) {
-        return service.comments(postSeq, session(request).usrId());
+        return service.comments(postSeq, service.requireSession(request.getHeader("Authorization")).usrId());
     }
 
     /** 로그인 사용자의 댓글을 게시물에 등록합니다. */
@@ -158,7 +136,7 @@ public class CommunityController {
             HttpServletRequest request,
             @PathVariable Long postSeq,
             @RequestBody CommentRequest body) {
-        CommunityPostCommandVO command = commandFor(session(request));
+        CommunityPostCommandVO command = service.newCommand(request.getHeader("Authorization"));
         command.setPostSeq(postSeq);
         command.setCommentContent(body.content());
         command.setParentCmtSeq(body.parentCmtSeq());
@@ -173,7 +151,7 @@ public class CommunityController {
             @PathVariable Long postSeq,
             @PathVariable Long cmtSeq,
             @RequestBody CommentRequest body) {
-        CommunityPostCommandVO command = commandFor(session(request));
+        CommunityPostCommandVO command = service.newCommand(request.getHeader("Authorization"));
         command.setPostSeq(postSeq);
         command.setCmtSeq(cmtSeq);
         command.setCommentContent(body.content());
@@ -187,7 +165,7 @@ public class CommunityController {
             HttpServletRequest request,
             @PathVariable Long postSeq,
             @PathVariable Long cmtSeq) {
-        CommunityPostCommandVO command = commandFor(session(request));
+        CommunityPostCommandVO command = service.newCommand(request.getHeader("Authorization"));
         command.setPostSeq(postSeq);
         command.setCmtSeq(cmtSeq);
         service.deleteComment(command);
@@ -203,14 +181,13 @@ public class CommunityController {
             @RequestPart(value = "filTyp", required = false) String requestedFileType,
             @RequestPart(value = "filCd", required = false) String requestedFileCode,
             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
-        UserSession session = session(request);
-        validateFileClassification(
+        service.validateFileClassification(
                 requestedFileType,
-                commonCodeUtil.getCodeName("FIL_TYP", "003"));
-        validateFileClassification(
+                "003");
+        service.validateFileClassification(
                 requestedFileCode,
-                commonCodeUtil.getCodeName("FIL_CD", "001"));
-        CommunityPostCommandVO command = commandFor(session);
+                "001");
+        CommunityPostCommandVO command = service.newCommand(request.getHeader("Authorization"));
         command.setContent(content);
         command.setVisibility(visibility);
         command.setFiles(files);
@@ -222,7 +199,7 @@ public class CommunityController {
     public Map<String, Boolean> seen(
             HttpServletRequest request,
             @PathVariable Long postSeq) {
-        CommunityPostCommandVO command = commandFor(session(request));
+        CommunityPostCommandVO command = service.newCommand(request.getHeader("Authorization"));
         command.setPostSeq(postSeq);
         service.markSeen(command);
         return Map.of("success", true);
@@ -234,7 +211,7 @@ public class CommunityController {
             HttpServletRequest request,
             @PathVariable Long postSeq,
             @RequestBody Toggle body) {
-        CommunityPostCommandVO command = commandFor(session(request));
+        CommunityPostCommandVO command = service.newCommand(request.getHeader("Authorization"));
         command.setPostSeq(postSeq);
         command.setEnabled(body.enabled());
         service.like(command);
@@ -247,7 +224,7 @@ public class CommunityController {
             HttpServletRequest request,
             @PathVariable Long postSeq,
             @RequestBody Toggle body) {
-        CommunityPostCommandVO command = commandFor(session(request));
+        CommunityPostCommandVO command = service.newCommand(request.getHeader("Authorization"));
         command.setPostSeq(postSeq);
         command.setEnabled(body.enabled());
         service.save(command);
@@ -259,47 +236,12 @@ public class CommunityController {
     public ResponseEntity<Resource> file(
             HttpServletRequest request,
             @PathVariable Long filSeq) {
-        UserSession user = session(request);
-        if (mapper.canReadFile(
-                filSeq,
-                user.usrId(),
-                commonCodeUtil.getCodeName("POST_STAT", "001"),
-                commonCodeUtil.getCodeName("FOLLOW_STAT", "001"),
-                commonCodeUtil.getCodeName("VIS_TYP", "001")) == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다.");
-        }
-        StoredFile file = fileStorage.metadata(filSeq);
-        MediaType contentType = MediaType.parseMediaType(file.getContTyp());
+        CommunityFileResourceVO file = service.file(filSeq, service.requireSession(request.getHeader("Authorization")).usrId());
+        MediaType contentType = MediaType.parseMediaType(file.contentType());
         return ResponseEntity.ok()
                 .contentType(contentType)
                 .header("Cache-Control", "private, max-age=3600")
-                .body((Resource) new FileSystemResource(fileStorage.pathOf(file)));
-    }
-
-    /** Authorization 헤더의 세션 토큰을 검증합니다. */
-    private UserSession session(HttpServletRequest request) {
-        String auth = request.getHeader("Authorization");
-        UserSession user = auth != null && auth.startsWith("Bearer ")
-                ? sessions.getSession(auth.substring(7))
-                : null;
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-        }
-        return user;
-    }
-
-    /** 세션 사용자 ID를 업무 VO와 공통 시스템 컬럼에 설정합니다. */
-    private CommunityPostCommandVO commandFor(UserSession session) {
-        CommunityPostCommandVO command = new CommunityPostCommandVO();
-        command.setUsrId(session.usrId());
-        command.setSystemUserId(session.usrId());
-        return command;
-    }
-
-    private void validateFileClassification(String requestedCode, String expectedCode) {
-        if (requestedCode != null && !requestedCode.equals(expectedCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일 분류 코드가 올바르지 않습니다.");
-        }
+                .body((Resource) new FileSystemResource(file.path()));
     }
 
     /** 좋아요·저장 변경 요청 값입니다. */

@@ -6,10 +6,18 @@ import com.buc.ysc.community.vo.CommunityProfileSummaryVO;
 import com.buc.ysc.community.vo.CommunityCommentPreviewVO;
 import com.buc.ysc.community.vo.CommunityUserProfileVO;
 import com.buc.ysc.community.vo.CommunityUserSearchVO;
+import com.buc.ysc.community.vo.CommunityFileResourceVO;
+import com.buc.ysc.security.UserSession;
 import java.util.List;
 
 /** 커뮤니티 업무 처리 기능을 정의합니다. */
 public interface CommunityService {
+
+    UserSession requireSession(String authorizationHeader);
+
+    CommunityPostCommandVO newCommand(String authorizationHeader);
+
+    void validateFileClassification(String requestedCode, String expectedCode);
 
     /** 로그인 사용자의 게시물·팔로워·팔로잉 수를 조회합니다. */
     CommunityProfileSummaryVO profileSummary(String userId);
@@ -22,6 +30,8 @@ public interface CommunityService {
 
     /** 팔로우 상태를 변경합니다. */
     void setFollow(String usrId, String usrNm, String followingUsrId, boolean enabled);
+
+    void setFollowForSession(String authorizationHeader, String followingUsrId, boolean enabled);
 
     /** 현재 사용자를 팔로우하는 계정을 팔로워 목록에서 제거합니다. */
     void removeFollower(String usrId, String followerUsrId);
@@ -68,4 +78,7 @@ public interface CommunityService {
 
     /** 게시물 저장 상태를 변경합니다. */
     void save(CommunityPostCommandVO command);
+
+    /** 접근 권한을 확인하고 파일 조회 정보를 반환합니다. */
+    CommunityFileResourceVO file(Long filSeq, String userId);
 }

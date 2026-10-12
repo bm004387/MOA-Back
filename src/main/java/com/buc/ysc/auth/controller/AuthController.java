@@ -1,6 +1,5 @@
 package com.buc.ysc.auth.controller;
 
-import com.buc.ysc.security.SessionManager;
 import com.buc.ysc.auth.service.AuthService;
 import com.buc.ysc.auth.vo.record.UsrIdCheckResponse;
 import com.buc.ysc.auth.vo.response.LoginResponse;
@@ -15,7 +14,6 @@ import com.buc.ysc.auth.vo.record.RecoveryIdSendRequest;
 import com.buc.ysc.auth.vo.record.RecoveryPasswordSendRequest;
 import com.buc.ysc.auth.vo.record.RecoveryPasswordVerifyRequest;
 import com.buc.ysc.auth.vo.record.PasswordResetRequest;
-import com.buc.ysc.util.MsgUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
@@ -28,13 +26,8 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
-    private final SessionManager sessionManager;
-    private final MsgUtil msgUtil;
-
-    public AuthController(AuthService authService, SessionManager sessionManager, MsgUtil msgUtil) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
-        this.sessionManager = sessionManager;
-        this.msgUtil = msgUtil;
     }
 
     /**
@@ -105,25 +98,11 @@ public class AuthController {
     /** 저장된 access token으로 로그인 세션을 확인합니다. */
     @GetMapping("/session")
     public ResponseEntity<UserInfoResponse> validateSession(HttpServletRequest request) {
-        String authorization = request.getHeader("Authorization");
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
+        UserInfoResponse userInfo = authService.validateSession(request.getHeader("Authorization"));
+        if (userInfo == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-
-        String token = authorization.substring(7);
-        var session = sessionManager.getSession(token);
-        if (session == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        return ResponseEntity.ok(new UserInfoResponse(
-                session.usrId(),
-                session.usrNm(),
-                session.rol(),
-                session.hpNo(),
-                session.adr(),
-                session.dtlAdr()
-        ));
+        return ResponseEntity.ok(userInfo);
     }
 
     /**
@@ -131,20 +110,7 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
-        String authorization = request.getHeader("Authorization");
-
-        if (authorization != null &&authorization.startsWith("Bearer ")) {
-            String token = authorization.substring(7);
-            var session = sessionManager.getSession(token);
-            if (session != null) {
-                sessionManager.deleteSession(token);
-                sessionManager.deleteAllSessionsForUser(session.usrId());
-            } else {
-                sessionManager.deleteSession(token);
-            }
-        }
-
-        return ResponseEntity.ok(java.util.Map.of("message",msgUtil.getMsg("AUTH", "002"))
-        );
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", authService.logout(request.getHeader("Authorization"))));
     }
 }

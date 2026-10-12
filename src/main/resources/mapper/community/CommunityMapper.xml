@@ -391,10 +391,22 @@
     <select id="selectMedia" resultType="com.buc.ysc.community.vo.CommunityPost$CommunityMedia">
         SELECT
                PF.FIL_SEQ AS filSeq
-            ,  PF.MEDIA_TYP AS mediaType
-            ,  D.CONT_TYP AS contentType
+            ,  COALESCE(M.MEDIA_NM, PF.MEDIA_TYP) AS mediaType
+            ,  COALESCE(C.CONTENT_TYPE, D.CONT_TYP) AS contentType
         FROM TB_COMM_POST_FILE PF
         JOIN FIL_DTL D ON D.FIL_SEQ = PF.FIL_SEQ
+        LEFT JOIN (
+            SELECT COM_DTL_CD, COM_DTL_NM AS MEDIA_NM
+              FROM ysc.TB_COM_CD_DTL
+             WHERE COM_CD = 'MEDIA_TYP'
+               AND USE_YN = 'Y'
+        ) M ON M.COM_DTL_CD = PF.MEDIA_TYP
+        LEFT JOIN (
+            SELECT COM_DTL_CD, COM_DTL_NM AS CONTENT_TYPE
+              FROM ysc.TB_COM_CD_DTL
+             WHERE COM_CD = 'CONT_TYP'
+               AND USE_YN = 'Y'
+        ) C ON C.COM_DTL_CD = D.CONT_TYP
         WHERE PF.POST_SEQ = #{postSeq}
         ORDER BY PF.SORT_ORD
     </select>
