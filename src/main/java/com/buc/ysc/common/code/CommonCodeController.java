@@ -6,6 +6,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 공통코드 조회 API입니다. */
@@ -24,7 +25,8 @@ public class CommonCodeController {
 
     /** DB의 사용 중 공통코드를 Redis 캐시에 다시 적재합니다. */
     @org.springframework.web.bind.annotation.PostMapping("/refresh")
-    public List<CommonCodeVO> refreshCodes() {
-        return commonCodeService.refreshCodes();
+    public List<CommonCodeVO> refreshCodes(
+            @RequestHeader(value = "X-Deployment-Token", required = false) String deploymentToken) {
+        return commonCodeService.refreshCodes(deploymentToken);
     }
 }

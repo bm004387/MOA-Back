@@ -90,7 +90,12 @@ public class UserServiceImpl implements UserService {
         update.setUsrId(session.usrId());
         update.setPwd(passwordEncoder.encode(body.newPassword()));
         update.setSystemUserId(session.usrId());
-        userMapper.updatePassword(update);
+        if (userMapper.updatePassword(update) != 1) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, msgUtil.getMsg("MYINFO", "008"));
+        }
+        sessionManager.deleteOtherSessionsForUser(
+                session.usrId(),
+                authorizationHeader.substring("Bearer ".length()));
         return Map.of("success", true, "message", msgUtil.getMsg("MYINFO", "003"));
     }
 
@@ -114,6 +119,9 @@ public class UserServiceImpl implements UserService {
         if (userMapper.updatePinPassword(update) != 1) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, msgUtil.getMsg("MYINFO", "010"));
         }
+        sessionManager.deleteOtherSessionsForUser(
+                session.usrId(),
+                authorizationHeader.substring("Bearer ".length()));
         return Map.of("message", msgUtil.getMsg("AUTH", "007"));
     }
 

@@ -7,5 +7,5 @@ import java.util.List;
 public interface CommonCodeService {
     List<CommonCodeVO> getAllCodes();
 
-    List<CommonCodeVO> refreshCodes();
+    List<CommonCodeVO> refreshCodes(String deploymentToken);
 }

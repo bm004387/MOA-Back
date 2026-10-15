@@ -12,6 +12,7 @@ MESSAGE_CACHE_URL="http://127.0.0.1:8080/api/msg/all"
 MESSAGE_CACHE_RESPONSE=""
 COMMON_CODE_CACHE_URL="http://127.0.0.1:8080/api/common-codes/refresh"
 COMMON_CODE_CACHE_RESPONSE=""
+DEPLOY_CURL_CONFIG=""
 FIREBASE_CREDENTIALS_FILE="${FIREBASE_CREDENTIALS_FILE:-${HOME}/firebase/ysc-firebase-service-account.json}"
 
 log() {
@@ -37,6 +38,9 @@ cleanup() {
     if [[ -n "$COMMON_CODE_CACHE_RESPONSE" ]]; then
         rm -f "$COMMON_CODE_CACHE_RESPONSE"
     fi
+    if [[ -n "$DEPLOY_CURL_CONFIG" ]]; then
+        rm -f "$DEPLOY_CURL_CONFIG"
+    fi
 }
 
 trap on_error ERR
@@ -53,6 +57,11 @@ log INFO "배포 커밋=$DEPLOY_COMMIT"
 log INFO "[2/9] 배포 환경 확인"
 if [[ ! -f "$ENV_FILE" ]]; then
     log ERROR "환경 파일을 찾을 수 없습니다: $ENV_FILE"
+    exit 1
+fi
+DEPLOY_API_TOKEN="$(sed -n 's/^DEPLOY_API_TOKEN=//p' "$ENV_FILE" | tail -n 1)"
+if [[ ! "$DEPLOY_API_TOKEN" =~ ^[[:xdigit:]]{64}$ ]]; then
+    log ERROR "$ENV_FILE에 64자리 16진수 DEPLOY_API_TOKEN을 설정해야 합니다."
     exit 1
 fi
 if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
@@ -151,8 +160,12 @@ log INFO "메시지 캐시를 DB 기준으로 갱신했습니다 (항목=${MESSA
 
 log INFO "공통코드 Redis 캐시를 DB 기준으로 갱신합니다"
 COMMON_CODE_CACHE_RESPONSE="$(mktemp)"
+DEPLOY_CURL_CONFIG="$(mktemp)"
+chmod 600 "$DEPLOY_CURL_CONFIG"
+printf 'header = "X-Deployment-Token: %s"\n' "$DEPLOY_API_TOKEN" > "$DEPLOY_CURL_CONFIG"
 COMMON_CODE_HTTP_STATUS="$(curl --silent --show-error --max-time 15 \
     --request POST \
+    --config "$DEPLOY_CURL_CONFIG" \
     --output "$COMMON_CODE_CACHE_RESPONSE" \
     --write-out '%{http_code}' \
     "$COMMON_CODE_CACHE_URL" 2>/dev/null || true)"

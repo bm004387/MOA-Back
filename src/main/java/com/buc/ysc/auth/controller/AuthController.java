@@ -45,8 +45,10 @@ public class AuthController {
 
     /** PIN 설정이 없거나 로그아웃한 사용자를 아이디와 비밀번호로 로그인합니다. */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
+        return ResponseEntity.ok(authService.login(request, httpRequest.getRemoteAddr()));
     }
 
     /** 아이디 찾기에 사용할 휴대폰 인증번호를 발송합니다. */
@@ -81,8 +83,10 @@ public class AuthController {
 
     /** 가입 시 전달한 비밀번호를 확인한 뒤 PIN 해시를 저장합니다. */
     @PostMapping("/pin/setup")
-    public ResponseEntity<Void> setupPin(@Valid @RequestBody PinSetupRequest request) {
-        authService.setupPin(request);
+    public ResponseEntity<Void> setupPin(
+            @Valid @RequestBody PinSetupRequest request,
+            HttpServletRequest httpRequest) {
+        authService.setupPin(request, httpRequest.getRemoteAddr());
         return ResponseEntity.noContent().build();
     }
 

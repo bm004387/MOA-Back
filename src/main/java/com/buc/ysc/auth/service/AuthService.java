@@ -20,11 +20,11 @@ public interface AuthService {
 
     SignupResponse signup(SignupRequest request);
 
-    void setupPin(PinSetupRequest request);
+    void setupPin(PinSetupRequest request, String remoteAddress);
 
     LoginResponse loginWithPin(PinLoginRequest request, String remoteAddress);
 
-    LoginResponse login(LoginRequest request);
+    LoginResponse login(LoginRequest request, String remoteAddress);
 
     UsrIdCheckResponse checkUsrId(String usrId);
 

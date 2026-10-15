@@ -3,7 +3,7 @@ package com.buc.ysc.auth.service.impl;
 import com.buc.ysc.auth.vo.response.SmsResponse;
 import com.buc.ysc.security.SessionManager;
 import com.buc.ysc.security.UserSession;
-import com.buc.ysc.security.PinLoginThrottle;
+import com.buc.ysc.security.LoginAttemptThrottle;
 import com.buc.ysc.user.mapper.UserMapper;
 import com.buc.ysc.auth.service.AuthService;
 import com.buc.ysc.auth.vo.record.UsrIdCheckResponse;
@@ -34,18 +34,18 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final SessionManager sessionManager;
     private final MsgUtil msgUtil;
-    private final PinLoginThrottle pinLoginThrottle;
+    private final LoginAttemptThrottle loginAttemptThrottle;
     private final SmsService smsService;
 
 
     public AuthServiceImpl(UserMapper userMapper, PasswordEncoder passwordEncoder,
                            SessionManager sessionManager, MsgUtil msgUtil,
-                           PinLoginThrottle pinLoginThrottle, SmsService smsService) {
+                           LoginAttemptThrottle loginAttemptThrottle, SmsService smsService) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.sessionManager = sessionManager;
         this.msgUtil = msgUtil;
-        this.pinLoginThrottle = pinLoginThrottle;
+        this.loginAttemptThrottle = loginAttemptThrottle;
         this.smsService = smsService;
     }
 
@@ -121,9 +121,15 @@ public class AuthServiceImpl implements AuthService {
 
     /** 가입 시 입력한 원래 비밀번호를 확인하고 PIN 해시를 저장합니다. */
     @Override
-    public void setupPin(PinSetupRequest request) {
+    public void setupPin(PinSetupRequest request, String remoteAddress) {
+        if (loginAttemptThrottle.isBlocked(request.usrId(), remoteAddress)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    msgUtil.getMsg("AUTH", "006"));
+        }
+
         UserVO user = userMapper.selectByUsrId(request.usrId());
         if (user == null || !passwordEncoder.matches(request.pwd(), user.getPwd())) {
+            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "001"));
         }
 
@@ -132,44 +138,53 @@ public class AuthServiceImpl implements AuthService {
         if (userMapper.updatePinPassword(user) != 1) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, msgUtil.getMsg("SIGNUP", "004"));
         }
+        loginAttemptThrottle.clearAccountFailures(request.usrId(), remoteAddress);
     }
 
     /** 로그아웃 뒤 사용할 아이디·비밀번호 로그인을 처리합니다. */
     @Override
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String remoteAddress) {
+        if (loginAttemptThrottle.isBlocked(request.usrId(), remoteAddress)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    msgUtil.getMsg("AUTH", "006"));
+        }
+
         UserVO user = userMapper.selectByUsrId(request.usrId());
         if (user == null || !passwordEncoder.matches(request.pwd(), user.getPwd())) {
+            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "001"));
         }
+
+        loginAttemptThrottle.clearAccountFailures(request.usrId(), remoteAddress);
 
         UserSession session = new UserSession(
                 user.getUsrId(), displayName(user), user.getRol(),
                 user.getHpNo(), user.getAdr(), user.getDtlAdr());
-        String accessToken = sessionManager.createSession(session, false);
+        String accessToken = sessionManager.createSession(session);
         UserInfoResponse userInfo = new UserInfoResponse(
                 user.getUsrId(), displayName(user), user.getRol(),
                 user.getHpNo(), user.getAdr(), user.getDtlAdr());
-        return new LoginResponse(accessToken, "Bearer", sessionManager.getExpiresInSeconds(false), userInfo);
+        return new LoginResponse(accessToken, "Bearer", sessionManager.getExpiresInSeconds(), userInfo);
     }
 
     /** BCrypt PIN을 검증하고 기존 Redis 세션이 있으면 재사용합니다. */
     @Override
     public LoginResponse loginWithPin(PinLoginRequest request, String remoteAddress) {
-        if (pinLoginThrottle.isBlocked(request.usrId(), remoteAddress)) {
+        if (loginAttemptThrottle.isBlocked(request.usrId(), remoteAddress)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     msgUtil.getMsg("AUTH", "006"));
         }
 
         UserVO user = userMapper.selectByUsrId(request.usrId());
         if (user == null) {
-            pinLoginThrottle.recordFailure(request.usrId(), remoteAddress);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "001"));
-        }
-        if (user.getPinPwd() == null || !passwordEncoder.matches(request.pin(), user.getPinPwd())) {
-            pinLoginThrottle.recordFailure(request.usrId(), remoteAddress);
+            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "008"));
         }
-        pinLoginThrottle.clearFailures(request.usrId(), remoteAddress);
+        if (user.getPinPwd() == null || !passwordEncoder.matches(request.pin(), user.getPinPwd())) {
+            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "008"));
+        }
+        loginAttemptThrottle.clearAccountFailures(request.usrId(), remoteAddress);
 
         UserSession session = new UserSession(
                 user.getUsrId(),
@@ -185,7 +200,7 @@ public class AuthServiceImpl implements AuthService {
             accessToken = request.sessionId();
         } else {
             sessionManager.deleteSession(request.sessionId());
-            accessToken = sessionManager.createSession(session, false);
+            accessToken = sessionManager.createSession(session);
         }
         UserInfoResponse userInfo = new UserInfoResponse(
                 user.getUsrId(),
@@ -195,7 +210,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getAdr(),
                 user.getDtlAdr()
         );
-        return new LoginResponse(accessToken, "Bearer", sessionManager.getExpiresInSeconds(false), userInfo);
+        return new LoginResponse(accessToken, "Bearer", sessionManager.getExpiresInSeconds(), userInfo);
     }
 
     /** 등록된 휴대폰 번호로 아이디 찾기 인증번호를 보냅니다. */

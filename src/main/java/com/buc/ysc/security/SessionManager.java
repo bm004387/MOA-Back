@@ -15,23 +15,31 @@ import java.util.List;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 @Component
 public class SessionManager {
 
-    // 로그인 세션 유지시간 30분
-    private static final Duration SESSION_TTL = Duration.ofMinutes(30);
+    // 활동이 없는 세션은 30분 후 만료하고, 활성 세션도 12시간 후에는 재인증합니다.
+    private static final String SESSION_EXPIRES_AT_FIELD = "absoluteExpiresAt";
 
     // Redis Key Prefix
     private static final String SESSION_PREFIX = "auth:session:";
     private static final String USER_SESSIONS_PREFIX = "auth:user-sessions:";
 
     private final StringRedisTemplate redisTemplate;
+    private final Duration sessionIdleTtl;
+    private final Duration sessionAbsoluteTtl;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public SessionManager(StringRedisTemplate redisTemplate) {
+    public SessionManager(
+            StringRedisTemplate redisTemplate,
+            @Value("${app.security.session-idle-ttl:30m}") Duration sessionIdleTtl,
+            @Value("${app.security.session-absolute-ttl:12h}") Duration sessionAbsoluteTtl) {
         this.redisTemplate = redisTemplate;
+        this.sessionIdleTtl = sessionIdleTtl;
+        this.sessionAbsoluteTtl = sessionAbsoluteTtl;
     }
 
     /**
@@ -40,7 +48,7 @@ public class SessionManager {
      * 실제 accessToken 자체는 Redis에 저장하지 않고
      * accessToken의 SHA-256 해시값을 Redis Key로 사용한다.
      */
-    public String createSession(UserSession session, boolean rememberMe) {
+    public String createSession(UserSession session) {
 
         // 256bit = 32byte 랜덤 토큰 생성
         byte[] bytes = new byte[32];
@@ -55,6 +63,9 @@ public class SessionManager {
         // accessToken을 SHA-256으로 변환하여 Redis Key 생성
         String redisKey = getRedisKey(token);
 
+        long createdAt = System.currentTimeMillis();
+        long absoluteExpiresAt = createdAt + sessionAbsoluteTtl.toMillis();
+
         // Redis에 저장할 세션 정보
         Map<String, String> values = Map.of(
                 "usrId", session.usrId(),
@@ -62,7 +73,9 @@ public class SessionManager {
                 "rol", session.rol(),
                 "hpNo", Objects.toString(session.hpNo(), ""),
                 "adr", Objects.toString(session.adr(), ""),
-                "dtlAdr", Objects.toString(session.dtlAdr(), "")
+                "dtlAdr", Objects.toString(session.dtlAdr(), ""),
+                "createdAt", Long.toString(createdAt),
+                SESSION_EXPIRES_AT_FIELD, Long.toString(absoluteExpiresAt)
         );
 
         // Redis Hash에 세션 저장
@@ -70,11 +83,8 @@ public class SessionManager {
         String userSessionsKey = USER_SESSIONS_PREFIX + session.usrId();
         redisTemplate.opsForSet().add(userSessionsKey, redisKey);
 
-        // 자동 로그인 선택 시 로그아웃 전까지 세션을 유지하고, 아니면 30분 유휴 만료를 적용합니다.
-        if (!rememberMe) {
-            redisTemplate.expire(redisKey, SESSION_TTL);
-            redisTemplate.expire(userSessionsKey, SESSION_TTL);
-        }
+        redisTemplate.expire(redisKey, sessionIdleTtl);
+        redisTemplate.expire(userSessionsKey, sessionAbsoluteTtl);
 
         return token;
     }
@@ -103,6 +113,19 @@ public class SessionManager {
 
         try {
 
+            String expiresAtValue = Objects.toString(
+                    values.get(SESSION_EXPIRES_AT_FIELD), "");
+            if (expiresAtValue.isBlank()) {
+                // 이전 버전에서 발급되어 최대 만료시각이 없는 토큰은 재인증시킵니다.
+                deleteSession(token);
+                return null;
+            }
+            long absoluteExpiresAt = Long.parseLong(expiresAtValue);
+            if (System.currentTimeMillis() >= absoluteExpiresAt) {
+                deleteSession(token);
+                return null;
+            }
+
             // Redis에 저장된 사용자 정보로 세션 생성
             UserSession session = new UserSession(
                     values.get("usrId").toString(),
@@ -113,8 +136,8 @@ public class SessionManager {
                     Objects.toString(values.get("dtlAdr"), "")
             );
 
-            // 만료 시간이 설정된 세션만 슬라이딩 연장합니다. TTL -1은 자동 로그인 세션입니다.
-            refreshTemporarySession(redisKey);
+            // 유휴 만료는 연장하되, 세션의 절대 만료시각을 넘기지 않습니다.
+            refreshTemporarySession(redisKey, absoluteExpiresAt);
             refreshTemporarySessionIndex(session.usrId());
 
             return session;
@@ -123,7 +146,7 @@ public class SessionManager {
 
             // Redis 데이터가 비정상적인 경우
             // 해당 세션 삭제
-            redisTemplate.delete(redisKey);
+            deleteSession(token);
 
             return null;
         }
@@ -159,30 +182,59 @@ public class SessionManager {
     public void deleteAllSessionsForUser(String usrId) {
         if (usrId == null || usrId.isBlank()) return;
         String indexKey = USER_SESSIONS_PREFIX + usrId;
-        var sessionKeys = redisTemplate.opsForSet().members(indexKey);
-        List<String> keysToDelete = new ArrayList<>();
-        if (sessionKeys != null) keysToDelete.addAll(sessionKeys);
-
-        // 인덱스 도입 전 생성된 세션도 포함하도록 Redis SCAN으로 기존 세션을 확인합니다.
-        List<String> legacySessionKeys = redisTemplate.execute(
-                (org.springframework.data.redis.core.RedisCallback<List<String>>) connection -> {
-            List<String> matchingKeys = new ArrayList<>();
-            try (var cursor = connection.scan(org.springframework.data.redis.core.ScanOptions.scanOptions()
-                    .match(SESSION_PREFIX + "*").count(500).build())) {
-                while (cursor.hasNext()) {
-                    matchingKeys.add(new String(cursor.next(), StandardCharsets.UTF_8));
-                }
-            }
-            return matchingKeys;
-        });
-        if (legacySessionKeys != null) {
-            for (String sessionKey : legacySessionKeys) {
-                Object owner = redisTemplate.opsForHash().get(sessionKey, "usrId");
-                if (usrId.equals(owner)) keysToDelete.add(sessionKey);
-            }
-        }
+        List<String> keysToDelete = findSessionKeysForUser(usrId);
         if (!keysToDelete.isEmpty()) redisTemplate.delete(keysToDelete);
         redisTemplate.delete(indexKey);
+    }
+
+    /** 비밀번호 또는 PIN 변경 시 현재 기기 세션만 유지하고 나머지를 폐기합니다. */
+    public void deleteOtherSessionsForUser(String usrId, String currentToken) {
+        if (usrId == null || usrId.isBlank() || currentToken == null || currentToken.isBlank()) return;
+
+        String indexKey = USER_SESSIONS_PREFIX + usrId;
+        String currentSessionKey = getRedisKey(currentToken);
+        List<String> sessionKeys = findSessionKeysForUser(usrId);
+        List<String> keysToDelete = sessionKeys.stream()
+                .filter(sessionKey -> !sessionKey.equals(currentSessionKey))
+                .toList();
+
+        if (!keysToDelete.isEmpty()) {
+            redisTemplate.delete(keysToDelete);
+            redisTemplate.opsForSet().remove(indexKey, keysToDelete.toArray());
+        }
+    }
+
+    private List<String> findSessionKeysForUser(String usrId) {
+        String indexKey = USER_SESSIONS_PREFIX + usrId;
+        List<String> matchingKeys = new ArrayList<>();
+        var indexedSessionKeys = redisTemplate.opsForSet().members(indexKey);
+        if (indexedSessionKeys != null) matchingKeys.addAll(indexedSessionKeys);
+
+        // 인덱스 도입 전 세션도 포함하도록 Redis SCAN으로 보완합니다.
+        List<String> allSessionKeys = redisTemplate.execute(
+                (org.springframework.data.redis.core.RedisCallback<List<String>>) connection -> {
+                    List<String> keys = new ArrayList<>();
+                    try (var cursor = connection.scan(
+                            org.springframework.data.redis.core.ScanOptions.scanOptions()
+                                    .match(SESSION_PREFIX + "*")
+                                    .count(500)
+                                    .build())) {
+                        while (cursor.hasNext()) {
+                            keys.add(new String(cursor.next(), StandardCharsets.UTF_8));
+                        }
+                    }
+                    return keys;
+                });
+
+        if (allSessionKeys != null) {
+            for (String sessionKey : allSessionKeys) {
+                Object owner = redisTemplate.opsForHash().get(sessionKey, "usrId");
+                if (usrId.equals(owner) && !matchingKeys.contains(sessionKey)) {
+                    matchingKeys.add(sessionKey);
+                }
+            }
+        }
+        return matchingKeys;
     }
 
     /** 세션에 저장된 주소 정보를 수정합니다. */
@@ -236,21 +288,36 @@ public class SessionManager {
         }
     }
 
-    /** 자동 로그인 세션은 0(만료 없음), 일반 세션은 30분을 반환합니다. */
-    public long getExpiresInSeconds(boolean rememberMe) {
-        return rememberMe ? 0 : SESSION_TTL.toSeconds();
+    /** 응답에 반환하는 기본 유휴 만료시간(초)입니다. */
+    public long getExpiresInSeconds() {
+        return sessionIdleTtl.toSeconds();
     }
 
     private void refreshTemporarySession(String redisKey) {
-        Long ttl = redisTemplate.getExpire(redisKey, TimeUnit.SECONDS);
-        if (ttl != null && ttl >= 0) {
-            redisTemplate.expire(redisKey, SESSION_TTL);
+        Object expiresAtValue = redisTemplate.opsForHash().get(redisKey, SESSION_EXPIRES_AT_FIELD);
+        if (expiresAtValue == null) {
+            return;
         }
+        try {
+            refreshTemporarySession(redisKey, Long.parseLong(expiresAtValue.toString()));
+        } catch (NumberFormatException ignored) {
+            redisTemplate.delete(redisKey);
+        }
+    }
+
+    private void refreshTemporarySession(String redisKey, long absoluteExpiresAt) {
+        long remainingMillis = absoluteExpiresAt - System.currentTimeMillis();
+        if (remainingMillis <= 0) {
+            redisTemplate.delete(redisKey);
+            return;
+        }
+        long ttlMillis = Math.min(sessionIdleTtl.toMillis(), remainingMillis);
+        redisTemplate.expire(redisKey, Duration.ofMillis(ttlMillis));
     }
 
     private void refreshTemporarySessionIndex(String usrId) {
         String indexKey = USER_SESSIONS_PREFIX + usrId;
         Long ttl = redisTemplate.getExpire(indexKey, TimeUnit.SECONDS);
-        if (ttl != null && ttl >= 0) redisTemplate.expire(indexKey, SESSION_TTL);
+        if (ttl != null && ttl >= 0) redisTemplate.expire(indexKey, sessionIdleTtl);
     }
 }
