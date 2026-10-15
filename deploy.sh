@@ -60,8 +60,16 @@ if [[ ! -f "$ENV_FILE" ]]; then
     exit 1
 fi
 DEPLOY_API_TOKEN="$(sed -n 's/^DEPLOY_API_TOKEN=//p' "$ENV_FILE" | tail -n 1)"
-if [[ ! "$DEPLOY_API_TOKEN" =~ ^[[:xdigit:]]{64}$ ]]; then
-    log ERROR "$ENV_FILE에 64자리 16진수 DEPLOY_API_TOKEN을 설정해야 합니다."
+DEPLOY_API_TOKEN="${DEPLOY_API_TOKEN%$'\r'}"
+if [[ -z "$DEPLOY_API_TOKEN" ]]; then
+    if ! command -v openssl >/dev/null 2>&1; then
+        log ERROR "DEPLOY_API_TOKEN이 없고 임시 토큰을 만들 openssl도 찾을 수 없습니다."
+        exit 1
+    fi
+    DEPLOY_API_TOKEN="$(openssl rand -hex 32)"
+    log INFO "$ENV_FILE에 배포 토큰이 없어 이번 배포에서 사용할 임시 토큰을 생성했습니다."
+elif [[ ! "$DEPLOY_API_TOKEN" =~ ^[[:xdigit:]]{64}$ ]]; then
+    log ERROR "$ENV_FILE의 DEPLOY_API_TOKEN은 64자리 16진수여야 합니다."
     exit 1
 fi
 if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
