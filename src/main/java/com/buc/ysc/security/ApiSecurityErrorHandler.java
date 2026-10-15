@@ -25,27 +25,15 @@ public class ApiSecurityErrorHandler implements AuthenticationEntryPoint, Access
     }
 
     @Override
-    public void commence(
-            HttpServletRequest request,
-            HttpServletResponse response,
+    public void commence(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException exception) throws IOException {
-        writeError(
-                request,
-                response,
-                HttpStatus.UNAUTHORIZED,
-                getLoginRequiredMessage());
+        writeError(request, response, HttpStatus.UNAUTHORIZED, getLoginRequiredMessage());
     }
 
     @Override
-    public void handle(
-            HttpServletRequest request,
-            HttpServletResponse response,
+    public void handle(HttpServletRequest request, HttpServletResponse response,
             AccessDeniedException exception) throws IOException {
-        writeError(
-                request,
-                response,
-                HttpStatus.FORBIDDEN,
-                "접근 권한이 없습니다.");
+        writeError(request, response, HttpStatus.FORBIDDEN, "접근 권한이 없습니다.");
     }
 
     private String getLoginRequiredMessage() {
@@ -60,11 +48,8 @@ public class ApiSecurityErrorHandler implements AuthenticationEntryPoint, Access
         return "로그인이 필요합니다.";
     }
 
-    private void writeError(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            HttpStatus status,
-            String message) throws IOException {
+    private void writeError(HttpServletRequest request, HttpServletResponse response,
+            HttpStatus status, String message) throws IOException {
         response.setStatus(status.value());
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

@@ -17,19 +17,18 @@ import org.springframework.beans.factory.annotation.Value;
 public class LoginAttemptThrottle {
 
     private static final String KEY_PREFIX = "auth:login-fail:";
-    private static final DefaultRedisScript<Long> INCREMENT_WITH_TTL = new DefaultRedisScript<>(
-            "local count = redis.call('INCR', KEYS[1]); "
-                    + "if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); end; "
-                    + "return count",
-            Long.class);
+    private static final String INCREMENT_SCRIPT = "local count = redis.call('INCR', KEYS[1]); "
+            + "if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); end; "
+            + "return count";
+    private static final DefaultRedisScript<Long> INCREMENT_WITH_TTL =
+            new DefaultRedisScript<>(INCREMENT_SCRIPT, Long.class);
 
     private final StringRedisTemplate redisTemplate;
     private final int maxFailuresPerAccountAndIp;
     private final int maxFailuresPerAccount;
     private final Duration window;
 
-    public LoginAttemptThrottle(
-            StringRedisTemplate redisTemplate,
+    public LoginAttemptThrottle(StringRedisTemplate redisTemplate,
             @Value("${app.security.login.max-failures-per-account-ip:10}") int maxFailuresPerAccountAndIp,
             @Value("${app.security.login.max-failures-per-account:30}") int maxFailuresPerAccount,
             @Value("${app.security.login.failure-window:15m}") Duration window) {
@@ -57,8 +56,7 @@ public class LoginAttemptThrottle {
     public void clearAccountFailures(String usrId, String remoteAddress) {
         String normalizedUserId = normalizeUserId(usrId);
         String normalizedAddress = normalizeAddress(remoteAddress);
-        redisTemplate.delete(List.of(
-                accountAddressKey(normalizedUserId, normalizedAddress),
+        redisTemplate.delete(List.of(accountAddressKey(normalizedUserId, normalizedAddress),
                 accountKey(normalizedUserId)));
     }
 
@@ -76,10 +74,7 @@ public class LoginAttemptThrottle {
     }
 
     private void increment(String key) {
-        redisTemplate.execute(
-                INCREMENT_WITH_TTL,
-                List.of(key),
-                Long.toString(window.toMillis()));
+        redisTemplate.execute(INCREMENT_WITH_TTL, List.of(key), Long.toString(window.toMillis()));
     }
 
     private String normalizeUserId(String usrId) {

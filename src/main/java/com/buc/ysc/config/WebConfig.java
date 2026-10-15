@@ -18,39 +18,36 @@ import org.springframework.security.web.authentication.AnonymousAuthenticationFi
 public class WebConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            SessionManager sessionManager,
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionManager sessionManager,
             ApiSecurityErrorHandler errorHandler) throws Exception {
-        AccessTokenAuthenticationFilter tokenFilter =
-                new AccessTokenAuthenticationFilter(sessionManager, errorHandler);
 
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .logout(AbstractHttpConfigurer::disable)
-                .requestCache(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(errors -> errors
-                        .authenticationEntryPoint(errorHandler)
-                        .accessDeniedHandler(errorHandler))
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST,
+        AccessTokenAuthenticationFilter tokenFilter = new AccessTokenAuthenticationFilter(sessionManager, errorHandler);
+
+        http.csrf(AbstractHttpConfigurer::disable)
+            .formLogin(AbstractHttpConfigurer::disable)
+            .httpBasic(AbstractHttpConfigurer::disable)
+            .logout(AbstractHttpConfigurer::disable)
+            .requestCache(AbstractHttpConfigurer::disable)
+            .sessionManagement(session -> session
+            .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(errors -> errors
+            .authenticationEntryPoint(errorHandler)
+            .accessDeniedHandler(errorHandler))
+            .authorizeHttpRequests(authorize -> authorize
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            .requestMatchers(HttpMethod.POST,
                                 "/api/auth/signup",
                                 "/api/auth/login",
                                 "/api/auth/pin/login",
                                 "/api/auth/pin/setup").permitAll()
-                        .requestMatchers(HttpMethod.GET,
+            .requestMatchers(HttpMethod.GET,
                                 "/api/auth/check-user-id",
                                 "/api/msg/all").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/common-codes/refresh").permitAll()
-                        .requestMatchers("/api/auth/recovery/**", "/api/sms/**").permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(tokenFilter, AnonymousAuthenticationFilter.class)
-                .headers(Customizer.withDefaults());
+            .requestMatchers(HttpMethod.POST, "/api/common-codes/refresh").permitAll()
+            .requestMatchers("/api/auth/recovery/**", "/api/sms/**").permitAll()
+            .anyRequest().authenticated())
+            .addFilterBefore(tokenFilter, AnonymousAuthenticationFilter.class)
+            .headers(Customizer.withDefaults());
 
         return http.build();
     }

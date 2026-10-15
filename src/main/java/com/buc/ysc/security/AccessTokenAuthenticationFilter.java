@@ -24,17 +24,14 @@ public class AccessTokenAuthenticationFilter extends OncePerRequestFilter {
     private final SessionManager sessionManager;
     private final AuthenticationEntryPoint authenticationEntryPoint;
 
-    public AccessTokenAuthenticationFilter(
-            SessionManager sessionManager,
+    public AccessTokenAuthenticationFilter(SessionManager sessionManager,
             AuthenticationEntryPoint authenticationEntryPoint) {
         this.sessionManager = sessionManager;
         this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 
@@ -63,10 +60,7 @@ public class AccessTokenAuthenticationFilter extends OncePerRequestFilter {
         var authorities = userSession.rol() == null || userSession.rol().isBlank()
                 ? List.<SimpleGrantedAuthority>of()
                 : List.of(new SimpleGrantedAuthority("ROLE_" + userSession.rol()));
-        var authentication = new UsernamePasswordAuthenticationToken(
-                userSession,
-                null,
-                authorities);
+        var authentication = new UsernamePasswordAuthenticationToken(userSession, null, authorities);
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -93,9 +87,7 @@ public class AccessTokenAuthenticationFilter extends OncePerRequestFilter {
     private void reject(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
         SecurityContextHolder.clearContext();
-        authenticationEntryPoint.commence(
-                request,
-                response,
+        authenticationEntryPoint.commence(request, response,
                 new BadCredentialsException("유효하지 않은 접근 토큰입니다."));
     }
 }

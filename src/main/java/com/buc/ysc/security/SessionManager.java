@@ -33,8 +33,7 @@ public class SessionManager {
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public SessionManager(
-            StringRedisTemplate redisTemplate,
+    public SessionManager(StringRedisTemplate redisTemplate,
             @Value("${app.security.session-idle-ttl:30m}") Duration sessionIdleTtl,
             @Value("${app.security.session-absolute-ttl:12h}") Duration sessionAbsoluteTtl) {
         this.redisTemplate = redisTemplate;
@@ -67,11 +66,8 @@ public class SessionManager {
         long absoluteExpiresAt = createdAt + sessionAbsoluteTtl.toMillis();
 
         // Redis에 저장할 세션 정보
-        Map<String, String> values = Map.of(
-                "usrId", session.usrId(),
-                "usrNm", session.usrNm(),
-                "rol", session.rol(),
-                "hpNo", Objects.toString(session.hpNo(), ""),
+        Map<String, String> values = Map.of("usrId", session.usrId(), "usrNm", session.usrNm(),
+                "rol", session.rol(), "hpNo", Objects.toString(session.hpNo(), ""),
                 "adr", Objects.toString(session.adr(), ""),
                 "dtlAdr", Objects.toString(session.dtlAdr(), ""),
                 "createdAt", Long.toString(createdAt),
@@ -113,8 +109,7 @@ public class SessionManager {
 
         try {
 
-            String expiresAtValue = Objects.toString(
-                    values.get(SESSION_EXPIRES_AT_FIELD), "");
+            String expiresAtValue = Objects.toString(values.get(SESSION_EXPIRES_AT_FIELD), "");
             if (expiresAtValue.isBlank()) {
                 // 이전 버전에서 발급되어 최대 만료시각이 없는 토큰은 재인증시킵니다.
                 deleteSession(token);
@@ -127,14 +122,11 @@ public class SessionManager {
             }
 
             // Redis에 저장된 사용자 정보로 세션 생성
-            UserSession session = new UserSession(
-                    values.get("usrId").toString(),
-                    values.get("usrNm").toString(),
-                    values.get("rol").toString(),
+            UserSession session = new UserSession(values.get("usrId").toString(),
+                    values.get("usrNm").toString(), values.get("rol").toString(),
                     Objects.toString(values.get("hpNo"), ""),
                     Objects.toString(values.get("adr"), ""),
-                    Objects.toString(values.get("dtlAdr"), "")
-            );
+                    Objects.toString(values.get("dtlAdr"), ""));
 
             // 유휴 만료는 연장하되, 세션의 절대 만료시각을 넘기지 않습니다.
             refreshTemporarySession(redisKey, absoluteExpiresAt);
@@ -211,11 +203,10 @@ public class SessionManager {
         if (indexedSessionKeys != null) matchingKeys.addAll(indexedSessionKeys);
 
         // 인덱스 도입 전 세션도 포함하도록 Redis SCAN으로 보완합니다.
-        List<String> allSessionKeys = redisTemplate.execute(
-                (org.springframework.data.redis.core.RedisCallback<List<String>>) connection -> {
+        org.springframework.data.redis.core.RedisCallback<List<String>> scanSessionKeys =
+                connection -> {
                     List<String> keys = new ArrayList<>();
-                    try (var cursor = connection.scan(
-                            org.springframework.data.redis.core.ScanOptions.scanOptions()
+                    try (var cursor = connection.scan(org.springframework.data.redis.core.ScanOptions.scanOptions()
                                     .match(SESSION_PREFIX + "*")
                                     .count(500)
                                     .build())) {
@@ -224,7 +215,8 @@ public class SessionManager {
                         }
                     }
                     return keys;
-                });
+                };
+        List<String> allSessionKeys = redisTemplate.execute(scanSessionKeys);
 
         if (allSessionKeys != null) {
             for (String sessionKey : allSessionKeys) {
@@ -272,19 +264,13 @@ public class SessionManager {
             MessageDigest digest =
                     MessageDigest.getInstance("SHA-256");
 
-            byte[] hash =
-                    digest.digest(
-                            value.getBytes(StandardCharsets.UTF_8)
-                    );
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
 
             return HexFormat.of().formatHex(hash);
 
         } catch (NoSuchAlgorithmException e) {
 
-            throw new IllegalStateException(
-                    "SHA-256을 사용할 수 없습니다.",
-                    e
-            );
+            throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", e);
         }
     }
 

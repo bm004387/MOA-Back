@@ -45,8 +45,7 @@ public class AuthController {
 
     /** PIN 설정이 없거나 로그아웃한 사용자를 아이디와 비밀번호로 로그인합니다. */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request,
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         return ResponseEntity.ok(authService.login(request, httpRequest.getRemoteAddr()));
     }
@@ -83,8 +82,7 @@ public class AuthController {
 
     /** 가입 시 전달한 비밀번호를 확인한 뒤 PIN 해시를 저장합니다. */
     @PostMapping("/pin/setup")
-    public ResponseEntity<Void> setupPin(
-            @Valid @RequestBody PinSetupRequest request,
+    public ResponseEntity<Void> setupPin(@Valid @RequestBody PinSetupRequest request,
             HttpServletRequest httpRequest) {
         authService.setupPin(request, httpRequest.getRemoteAddr());
         return ResponseEntity.noContent().build();
@@ -92,10 +90,8 @@ public class AuthController {
 
     /** PIN을 검증하고 Redis 로그인 세션을 발급합니다. */
     @PostMapping("/pin/login")
-    public ResponseEntity<LoginResponse> loginWithPin(
-            @Valid @RequestBody PinLoginRequest request,
-            HttpServletRequest httpRequest
-    ) {
+    public ResponseEntity<LoginResponse> loginWithPin(@Valid @RequestBody PinLoginRequest request,
+            HttpServletRequest httpRequest) {
         return ResponseEntity.ok(authService.loginWithPin(request, httpRequest.getRemoteAddr()));
     }
 
@@ -114,7 +110,7 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
-        return ResponseEntity.ok(java.util.Map.of(
-                "message", authService.logout(request.getHeader("Authorization"))));
+        return ResponseEntity.ok(java.util.Map.of("message",
+                authService.logout(request.getHeader("Authorization"))));
     }
 }

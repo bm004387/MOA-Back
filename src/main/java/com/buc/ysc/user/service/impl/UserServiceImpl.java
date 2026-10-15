@@ -35,13 +35,9 @@ public class UserServiceImpl implements UserService {
     private final MsgUtil msgUtil;
     private final CommonCodeUtil commonCodeUtil;
 
-    public UserServiceImpl(
-            UserMapper userMapper,
-            SessionManager sessionManager,
-            PasswordEncoder passwordEncoder,
-            FileStorageService fileStorageService,
-            MsgUtil msgUtil,
-            CommonCodeUtil commonCodeUtil) {
+    public UserServiceImpl(UserMapper userMapper, SessionManager sessionManager,
+            PasswordEncoder passwordEncoder, FileStorageService fileStorageService,
+            MsgUtil msgUtil, CommonCodeUtil commonCodeUtil) {
         this.userMapper = userMapper;
         this.sessionManager = sessionManager;
         this.passwordEncoder = passwordEncoder;
@@ -65,15 +61,17 @@ public class UserServiceImpl implements UserService {
     public UserProfileResponse getMyProfile(String authorizationHeader) {
         UserSession session = requireSession(authorizationHeader);
         UserVO user = findUser(session.usrId());
-        return new UserProfileResponse(
-                session.usrId(), session.usrNm(), valueOrDatabase(session.hpNo(), user.getHpNo()),
-                valueOrDatabase(session.adr(), user.getAdr()), valueOrDatabase(session.dtlAdr(), user.getDtlAdr()),
+        return new UserProfileResponse(session.usrId(), session.usrNm(),
+                valueOrDatabase(session.hpNo(), user.getHpNo()),
+                valueOrDatabase(session.adr(), user.getAdr()),
+                valueOrDatabase(session.dtlAdr(), user.getDtlAdr()),
                 user.getPrflImgFilSeq() == null ? null : "/api/user/me/profile-image");
     }
 
     @Override
     @Transactional
-    public Map<String, Object> changePassword(String authorizationHeader, PasswordChangeRequest body) {
+    public Map<String, Object> changePassword(String authorizationHeader,
+            PasswordChangeRequest body) {
         UserSession session = requireSession(authorizationHeader);
         UserVO user = userMapper.selectByUsrId(session.usrId());
         if (user == null || body.currentPassword() == null
@@ -91,16 +89,17 @@ public class UserServiceImpl implements UserService {
         update.setPwd(passwordEncoder.encode(body.newPassword()));
         update.setSystemUserId(session.usrId());
         if (userMapper.updatePassword(update) != 1) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, msgUtil.getMsg("MYINFO", "008"));
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    msgUtil.getMsg("MYINFO", "008"));
         }
-        sessionManager.deleteOtherSessionsForUser(
-                session.usrId(),
+        sessionManager.deleteOtherSessionsForUser(session.usrId(),
                 authorizationHeader.substring("Bearer ".length()));
         return Map.of("success", true, "message", msgUtil.getMsg("MYINFO", "003"));
     }
 
     @Override
-    public Map<String, Object> verifyCurrentPassword(String authorizationHeader, PasswordVerifyRequest body) {
+    public Map<String, Object> verifyCurrentPassword(String authorizationHeader,
+            PasswordVerifyRequest body) {
         UserSession session = requireSession(authorizationHeader);
         UserVO user = userMapper.selectByUsrId(session.usrId());
         boolean valid = user != null && body.currentPassword() != null
@@ -117,18 +116,17 @@ public class UserServiceImpl implements UserService {
         update.setPinPwd(passwordEncoder.encode(body.pin()));
         update.setSystemUserId(session.usrId());
         if (userMapper.updatePinPassword(update) != 1) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, msgUtil.getMsg("MYINFO", "010"));
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    msgUtil.getMsg("MYINFO", "010"));
         }
-        sessionManager.deleteOtherSessionsForUser(
-                session.usrId(),
+        sessionManager.deleteOtherSessionsForUser(session.usrId(),
                 authorizationHeader.substring("Bearer ".length()));
         return Map.of("message", msgUtil.getMsg("AUTH", "007"));
     }
 
     @Override
     @Transactional
-    public Map<String, String> changeAddress(
-            String authorizationHeader, AddressChangeRequest body) {
+    public Map<String, String> changeAddress(String authorizationHeader, AddressChangeRequest body) {
         UserSession session = requireSession(authorizationHeader);
         if (body.adr() == null || body.adr().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("COMMON", "007"));
@@ -147,8 +145,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public Map<String, String> changeNickname(
-            String authorizationHeader, NicknameChangeRequest body) {
+    public Map<String, String> changeNickname(String authorizationHeader, NicknameChangeRequest body) {
         UserSession session = requireSession(authorizationHeader);
         String nickname = body.nckNm().trim();
         UserVO update = new UserVO();
@@ -164,8 +161,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public Map<String, String> saveProfileImage(
-            String authorizationHeader, MultipartFile file, String requestedFileType, String requestedFileCode) {
+    public Map<String, String> saveProfileImage(String authorizationHeader, MultipartFile file,
+            String requestedFileType, String requestedFileCode) {
         UserSession session = requireSession(authorizationHeader);
         String fileType = "002";
         String fileCode = "002";
@@ -178,7 +175,8 @@ public class UserServiceImpl implements UserService {
         try {
             commonCodeUtil.getDetailCode("CONT_TYP", contentType.toLowerCase());
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("MYINFO", "011"), exception);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    msgUtil.getMsg("MYINFO", "011"), exception);
         }
         UserVO user = findUser(session.usrId());
         Long newFileSeq = fileStorageService.store(file, fileType, fileCode, session.usrId());
@@ -224,7 +222,8 @@ public class UserServiceImpl implements UserService {
 
     private void validateFileClassification(String requestedCode, String expectedCode) {
         if (requestedCode != null && !requestedCode.equals(expectedCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일 분류 코드가 올바르지 않습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "파일 분류 코드가 올바르지 않습니다.");
         }
     }
 
