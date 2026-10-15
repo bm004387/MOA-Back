@@ -14,7 +14,7 @@ public class MenuVO extends CommonVO {
     private Integer menuLevel;
     private Integer sortOrder;
     private String menuType;
-    private String iconName;
+    private Long icoFilSeq;
     private String programCode;
     private String programUrl;
 }

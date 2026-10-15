@@ -9,4 +9,5 @@ import java.util.List;
 public interface MenuMapper {
     List<MenuVO> getBottomMenuList(String menuType);
     List<MenuVO> getAllMenuList();
+    boolean isMenuIcon(Long filSeq);
 }

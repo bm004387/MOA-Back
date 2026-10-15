@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.buc.ysc.common.menu.mapper.MenuMapper">
+    <!-- 하단 메뉴와 연결된 파일 기본·상세 정보를 조회합니다. -->
     <select id="getBottomMenuList" resultType="com.buc.ysc.common.menu.vo.MenuVO">
         SELECT m.menu_id AS "menuId"
              , m.menu_nm AS "menuName"
-             , m.ico_nm AS "iconName"
+             , fd.fil_seq AS "icoFilSeq"
              , p.pgm_cd AS "programCode"
              , p.pgm_url AS "programUrl"
           FROM ysc.menu_mng m
           JOIN ysc.pgm_mng p
             ON p.pgm_cd = m.pgm_cd
+          LEFT JOIN ysc.fil_bas fb
+            ON fb.fil_seq = m.ico_fil_seq
+          LEFT JOIN ysc.fil_dtl fd
+            ON fd.fil_seq = fb.fil_seq
+           AND fd.fil_dtl_seq = 1
          WHERE m.menu_lvl = 1
            AND m.menu_typ = #{menuType}
            AND m.use_yn = 'Y'
@@ -17,6 +23,7 @@
          ORDER BY m.sort_ord, m.menu_id
     </select>
 
+    <!-- 전체 메뉴와 연결된 아이콘 파일 일련번호를 조회합니다. -->
     <select id="getAllMenuList" resultType="com.buc.ysc.common.menu.vo.MenuVO">
         SELECT m.menu_id AS "menuId"
              , m.menu_nm AS "menuName"
@@ -24,14 +31,34 @@
              , m.menu_lvl AS "menuLevel"
              , m.sort_ord AS "sortOrder"
              , m.menu_typ AS "menuType"
-             , m.ico_nm AS "iconName"
+             , fd.fil_seq AS "icoFilSeq"
              , p.pgm_cd AS "programCode"
              , p.pgm_url AS "programUrl"
           FROM ysc.menu_mng m
           LEFT JOIN ysc.pgm_mng p
             ON p.pgm_cd = m.pgm_cd
            AND p.use_yn = 'Y'
+          LEFT JOIN ysc.fil_bas fb
+            ON fb.fil_seq = m.ico_fil_seq
+          LEFT JOIN ysc.fil_dtl fd
+            ON fd.fil_seq = fb.fil_seq
+           AND fd.fil_dtl_seq = 1
          WHERE m.use_yn = 'Y'
          ORDER BY m.sort_ord, m.menu_lvl, m.menu_id
+    </select>
+
+    <!-- 활성 메뉴에서 사용하는 아이콘 파일만 화면에 제공하도록 확인합니다. -->
+    <select id="isMenuIcon" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM ysc.menu_mng m
+              JOIN ysc.fil_bas fb
+                ON fb.fil_seq = m.ico_fil_seq
+              JOIN ysc.fil_dtl fd
+                ON fd.fil_seq = fb.fil_seq
+               AND fd.fil_dtl_seq = 1
+             WHERE m.ico_fil_seq = #{_parameter}
+               AND m.use_yn = 'Y'
+        )
     </select>
 </mapper>
