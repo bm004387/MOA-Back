@@ -99,6 +99,8 @@ DOCKER_RUN_ARGS=(
     --name "$APP_NAME"
     --network "$NETWORK_NAME"
     --env-file "$ENV_FILE"
+    # API 요청 헤더와 백엔드 검증에 동일한 배포 토큰을 명시적으로 전달합니다.
+    --env "DEPLOY_API_TOKEN=$DEPLOY_API_TOKEN"
     --env SPRING_PROFILES_ACTIVE=prod
     --env "FILE_STORAGE_ROOT=$UPLOAD_CONTAINER_PATH"
     --publish 127.0.0.1:8080:8080
@@ -172,7 +174,8 @@ COMMON_CODE_HTTP_STATUS="$(curl --silent --show-error --max-time 15 \
 COMMON_CODE_RESPONSE_COMPACT="$(tr -d '[:space:]' < "$COMMON_CODE_CACHE_RESPONSE" 2>/dev/null || true)"
 
 if [[ "$COMMON_CODE_HTTP_STATUS" != "200" ]]; then
-    log ERROR "공통코드 캐시 갱신 요청 실패 (HTTP=${COMMON_CODE_HTTP_STATUS:-연결 실패})"
+    COMMON_CODE_ERROR_BODY="$(head -c 500 "$COMMON_CODE_CACHE_RESPONSE" 2>/dev/null || true)"
+    log ERROR "공통코드 캐시 갱신 요청 실패 (HTTP=${COMMON_CODE_HTTP_STATUS:-연결 실패}, 응답=${COMMON_CODE_ERROR_BODY:-본문 없음})"
     exit 1
 fi
 
