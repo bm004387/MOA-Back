@@ -42,13 +42,13 @@ public class UserController {
 
     @PutMapping("/me/password")
     public ResponseEntity<Map<String, Object>> changePassword(
-            HttpServletRequest request, @RequestBody PasswordChangeRequest body) {
+            HttpServletRequest request, @Valid @RequestBody PasswordChangeRequest body) {
         return ResponseEntity.ok(userService.changePassword(request.getHeader("Authorization"), body));
     }
 
     @PostMapping("/me/password/verify")
     public ResponseEntity<Map<String, Object>> verifyCurrentPassword(
-            HttpServletRequest request, @RequestBody PasswordVerifyRequest body) {
+            HttpServletRequest request, @Valid @RequestBody PasswordVerifyRequest body) {
         return ResponseEntity.ok(userService.verifyCurrentPassword(request.getHeader("Authorization"), body));
     }
 

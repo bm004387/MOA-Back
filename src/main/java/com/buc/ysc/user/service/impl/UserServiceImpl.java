@@ -4,6 +4,7 @@ import com.buc.ysc.file.service.FileStorageService;
 import com.buc.ysc.file.vo.StoredFile;
 import com.buc.ysc.security.SessionManager;
 import com.buc.ysc.security.UserSession;
+import com.buc.ysc.security.PasswordInputPolicy;
 import com.buc.ysc.user.mapper.UserMapper;
 import com.buc.ysc.user.service.UserService;
 import com.buc.ysc.user.vo.request.AddressChangeRequest;
@@ -74,12 +75,15 @@ public class UserServiceImpl implements UserService {
             PasswordChangeRequest body) {
         UserSession session = requireSession(authorizationHeader);
         UserVO user = userMapper.selectByUsrId(session.usrId());
-        if (user == null || body.currentPassword() == null
+        if (user == null || !PasswordInputPolicy.isWithinBcryptLimit(body.currentPassword())
                 || !passwordEncoder.matches(body.currentPassword(), user.getPwd())) {
             return Map.of("success", false, "message", msgUtil.getMsg("MYINFO", "001"));
         }
-        if (body.newPassword() == null || body.newPassword().length() < 8) {
+        if (body.newPassword().length() < 8) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("MYINFO", "002"));
+        }
+        if (!PasswordInputPolicy.isWithinBcryptLimit(body.newPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("AUTH", "012"));
         }
         if (!body.newPassword().equals(body.confirmPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("COMMON", "003"));
@@ -102,7 +106,7 @@ public class UserServiceImpl implements UserService {
             PasswordVerifyRequest body) {
         UserSession session = requireSession(authorizationHeader);
         UserVO user = userMapper.selectByUsrId(session.usrId());
-        boolean valid = user != null && body.currentPassword() != null
+        boolean valid = user != null && PasswordInputPolicy.isWithinBcryptLimit(body.currentPassword())
                 && passwordEncoder.matches(body.currentPassword(), user.getPwd());
         return Map.of("valid", valid, "message", msgUtil.getMsg("MYINFO", valid ? "014" : "001"));
     }

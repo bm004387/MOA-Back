@@ -4,6 +4,7 @@ import com.buc.ysc.auth.vo.response.SmsResponse;
 import com.buc.ysc.security.SessionManager;
 import com.buc.ysc.security.UserSession;
 import com.buc.ysc.security.LoginAttemptThrottle;
+import com.buc.ysc.security.PasswordInputPolicy;
 import com.buc.ysc.user.mapper.UserMapper;
 import com.buc.ysc.auth.service.AuthService;
 import com.buc.ysc.auth.vo.record.UsrIdCheckResponse;
@@ -25,6 +26,7 @@ import com.buc.ysc.util.MsgUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -84,11 +86,22 @@ public class AuthServiceImpl implements AuthService {
      * 회원가입
      */
     @Override
+    @Transactional
     public SignupResponse signup(SignupRequest request) {
+
+        if (!PasswordInputPolicy.isWithinBcryptLimit(request.pwd())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("AUTH", "012"));
+        }
 
         // 아이디 중복 확인
         if (userMapper.existsByUsrId(request.usrId()) > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, msgUtil.getMsg("AUTH","002"));
+            throw new ResponseStatusException(HttpStatus.CONFLICT, msgUtil.getMsg("SIGNUP", "001"));
+        }
+        if (userMapper.existsHpNo(normalizePhone(request.hpNo()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, msgUtil.getMsg("SIGNUP", "005"));
+        }
+        if (!smsService.consumeSignupVerification(request.hpNo())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("SIGNUP", "006"));
         }
 
         UserVO user = new UserVO();
@@ -105,7 +118,7 @@ public class AuthServiceImpl implements AuthService {
         userMapper.insertUser(user);
 
 
-        return new SignupResponse(msgUtil.getMsg("AUTH", "005"), request.usrId());
+        return new SignupResponse(msgUtil.getMsg("SIGNUP", "003"), request.usrId());
     }
 
     @Override
@@ -113,22 +126,22 @@ public class AuthServiceImpl implements AuthService {
         int count = userMapper.existsByUsrId(usrId);
 
         if (count > 0) {
-            return new UsrIdCheckResponse(false, msgUtil.getMsg("AUTH", "002"));
+            return new UsrIdCheckResponse(false, msgUtil.getMsg("SIGNUP", "001"));
         }
-        return new UsrIdCheckResponse(true, msgUtil.getMsg("AUTH", "003"));
+        return new UsrIdCheckResponse(true, msgUtil.getMsg("SIGNUP", "002"));
     }
 
     /** 가입 시 입력한 원래 비밀번호를 확인하고 PIN 해시를 저장합니다. */
     @Override
     public void setupPin(PinSetupRequest request, String remoteAddress) {
-        if (loginAttemptThrottle.isBlocked(request.usrId(), remoteAddress)) {
+        if (!loginAttemptThrottle.tryPasswordAttempt(request.usrId(), remoteAddress)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     msgUtil.getMsg("AUTH", "006"));
         }
 
         UserVO user = userMapper.selectByUsrId(request.usrId());
-        if (user == null || !passwordEncoder.matches(request.pwd(), user.getPwd())) {
-            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
+        if (user == null || !PasswordInputPolicy.isWithinBcryptLimit(request.pwd())
+                || !passwordEncoder.matches(request.pwd(), user.getPwd())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "001"));
         }
 
@@ -144,14 +157,14 @@ public class AuthServiceImpl implements AuthService {
     /** 로그아웃 뒤 사용할 아이디·비밀번호 로그인을 처리합니다. */
     @Override
     public LoginResponse login(LoginRequest request, String remoteAddress) {
-        if (loginAttemptThrottle.isBlocked(request.usrId(), remoteAddress)) {
+        if (!loginAttemptThrottle.tryPasswordAttempt(request.usrId(), remoteAddress)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     msgUtil.getMsg("AUTH", "006"));
         }
 
         UserVO user = userMapper.selectByUsrId(request.usrId());
-        if (user == null || !passwordEncoder.matches(request.pwd(), user.getPwd())) {
-            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
+        if (user == null || !PasswordInputPolicy.isWithinBcryptLimit(request.pwd())
+                || !passwordEncoder.matches(request.pwd(), user.getPwd())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "001"));
         }
 
@@ -169,21 +182,19 @@ public class AuthServiceImpl implements AuthService {
     /** BCrypt PIN을 검증하고 기존 Redis 세션이 있으면 재사용합니다. */
     @Override
     public LoginResponse loginWithPin(PinLoginRequest request, String remoteAddress) {
-        if (loginAttemptThrottle.isBlocked(request.usrId(), remoteAddress)) {
+        if (!loginAttemptThrottle.tryPinAttempt(request.usrId(), remoteAddress)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     msgUtil.getMsg("AUTH", "006"));
         }
 
         UserVO user = userMapper.selectByUsrId(request.usrId());
         if (user == null) {
-            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "008"));
         }
         if (user.getPinPwd() == null || !passwordEncoder.matches(request.pin(), user.getPinPwd())) {
-            loginAttemptThrottle.recordFailure(request.usrId(), remoteAddress);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, msgUtil.getMsg("AUTH", "008"));
         }
-        loginAttemptThrottle.clearAccountFailures(request.usrId(), remoteAddress);
+        loginAttemptThrottle.clearPinFailures(request.usrId(), remoteAddress);
 
         UserSession session = new UserSession(user.getUsrId(), displayName(user), user.getRol(),
                 user.getHpNo(), user.getAdr(), user.getDtlAdr());
@@ -192,7 +203,6 @@ public class AuthServiceImpl implements AuthService {
         if (existingSession != null && existingSession.usrId().equals(user.getUsrId())) {
             accessToken = request.sessionId();
         } else {
-            sessionManager.deleteSession(request.sessionId());
             accessToken = sessionManager.createSession(session);
         }
         UserInfoResponse userInfo = new UserInfoResponse(user.getUsrId(), displayName(user),
@@ -237,9 +247,13 @@ public class AuthServiceImpl implements AuthService {
 
     /** 휴대폰 인증이 완료된 계정의 비밀번호를 변경합니다. */
     @Override
+    @Transactional
     public SmsResponse resetPassword(PasswordResetRequest request) {
         if (!request.newPassword().equals(request.confirmPassword())) {
             return new SmsResponse(false, msgUtil.getMsg("COMMON", "003"));
+        }
+        if (!PasswordInputPolicy.isWithinBcryptLimit(request.newPassword())) {
+            return new SmsResponse(false, msgUtil.getMsg("AUTH", "012"));
         }
         if (!smsService.consumePasswordRecoveryVerification(request.usrId(), request.hpNo())) {
             return new SmsResponse(false, msgUtil.getMsg("SMS", "006"));
@@ -250,6 +264,10 @@ public class AuthServiceImpl implements AuthService {
         update.setSystemUserId(request.usrId());
         if (userMapper.updatePassword(update) != 1) {
             return new SmsResponse(false, msgUtil.getMsg("MYINFO", "008"));
+        }
+        if (userMapper.clearPinPassword(update) != 1) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    msgUtil.getMsg("MYINFO", "008"));
         }
         sessionManager.deleteAllSessionsForUser(request.usrId());
         return new SmsResponse(true, msgUtil.getMsg("AUTH", "011"));

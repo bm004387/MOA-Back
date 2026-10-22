@@ -93,6 +93,15 @@
          WHERE USR_ID = #{usrId}
     </update>
 
+    <!-- 비밀번호 복구 후 이전 PIN 인증정보를 폐기합니다. -->
+    <update id="clearPinPassword" parameterType="com.buc.ysc.user.vo.request.UserVO">
+        UPDATE TB_USR
+           SET PIN_PWD = NULL
+             , LAST_MOD_USER_ID = #{lastModUserId}
+             , LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
+         WHERE USR_ID = #{usrId}
+    </update>
+
     <!-- PIN 비밀번호를 BCrypt 해시로 등록하거나 변경합니다. -->
     <update id="updatePinPassword" parameterType="com.buc.ysc.user.vo.request.UserVO">
         /* com.buc.ysc.user.mapper.UserMapper.updatePinPassword PIN 비밀번호 등록 */

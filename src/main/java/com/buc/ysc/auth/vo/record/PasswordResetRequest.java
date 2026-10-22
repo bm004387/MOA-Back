@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 public record PasswordResetRequest(
         @NotBlank @Size(max = 50) String usrId,
         @NotBlank @Pattern(regexp = "^01[0-9]{8,9}$") String hpNo,
-        @NotBlank @Size(min = 8) String newPassword,
-        @NotBlank String confirmPassword
+        @NotBlank @Size(min = 8, max = 72) String newPassword,
+        @NotBlank @Size(max = 72) String confirmPassword
 ) {
 }

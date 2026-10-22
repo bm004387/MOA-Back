@@ -17,6 +17,8 @@ public interface UserMapper {
 
     int updatePassword(UserVO user);
 
+    int clearPinPassword(UserVO user);
+
     int updatePinPassword(UserVO user);
 
     int updateAddress(UserVO user);

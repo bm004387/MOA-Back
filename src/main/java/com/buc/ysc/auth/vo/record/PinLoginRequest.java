@@ -15,6 +15,7 @@ public record PinLoginRequest(
         @Pattern(regexp = "^[0-9]{4}$", message = "PIN은 숫자 4자리여야 합니다.")
         String pin,
 
+        @Pattern(regexp = "^([A-Za-z0-9_-]{43})?$", message = "세션 정보 형식이 올바르지 않습니다.")
         String sessionId
 ) {
 }

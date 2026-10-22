@@ -12,6 +12,7 @@ public record PinSetupRequest(
         String usrId,
 
         @NotBlank
+        @Size(max = 72)
         String pwd,
 
         @NotBlank

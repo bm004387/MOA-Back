@@ -10,6 +10,8 @@ public interface SmsService {
 
     SmsResponse verify(SmsVerifyRequest request);
 
+    boolean consumeSignupVerification(String hpNo);
+
     SmsResponse sendIdRecovery(String hpNo);
 
     SmsResponse verifyIdRecovery(String hpNo, String code);
