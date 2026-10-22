@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.buc.ysc.user.mapper.UserMapper">
+<mapper namespace="com.buc.moa.user.mapper.UserMapper">
     <!-- 사용자 조회 -->
-    <select id="selectByUsrId" parameterType="string" resultType="com.buc.ysc.user.vo.request.UserVO">
-        SELECT /* com.buc.ysc.user.mapper.UserMapper.selectByUsrId 사용자정보 조회 */
+    <select id="selectByUsrId" parameterType="string" resultType="com.buc.moa.user.vo.request.UserVO">
+        SELECT /* com.buc.moa.user.mapper.UserMapper.selectByUsrId 사용자정보 조회 */
                USR_ID
              , PWD
              , PIN_PWD
@@ -25,7 +25,7 @@
 
     <!-- 아이디 중복 확인 -->
     <select id="existsByUsrId" parameterType="string" resultType="int">
-        /* com.buc.ysc.user.mapper.UserMapper.existsByUsrId 아이디 중복체크 */
+        /* com.buc.moa.user.mapper.UserMapper.existsByUsrId 아이디 중복체크 */
         SELECT COUNT(*)
           FROM TB_USR
          WHERE USR_ID = #{usrId}
@@ -33,7 +33,7 @@
 
     <!-- 휴대폰번호 중복확인 -->
     <select id="existsHpNo" parameterType="string" resultType="boolean">
-        /* com.buc.ysc.user.mapper.UserMapper.existsHpNo 휴대폰번호 중복확인 */
+        /* com.buc.moa.user.mapper.UserMapper.existsHpNo 휴대폰번호 중복확인 */
         SELECT CASE WHEN COUNT(*) > 0 THEN TRUE
                     ELSE FALSE
                      END
@@ -44,7 +44,7 @@
 
     <!-- 인증된 휴대폰 번호로 사용자 아이디를 조회합니다. -->
     <select id="selectUsrIdByHpNo" parameterType="string" resultType="string">
-        /* com.buc.ysc.user.mapper.UserMapper.selectUsrIdByHpNo 아이디 찾기 */
+        /* com.buc.moa.user.mapper.UserMapper.selectUsrIdByHpNo 아이디 찾기 */
         SELECT USR_ID
           FROM TB_USR
          WHERE REGEXP_REPLACE(HP_NO, '[^0-9]', '', 'g') = #{hpNo}
@@ -52,8 +52,8 @@
     </select>
 
     <!-- 회원가입 -->
-    <insert id="insertUser" parameterType="com.buc.ysc.user.vo.request.UserVO">
-        /* com.buc.ysc.user.mapper.UserMapper.insertUser 사용자정보 저장 */
+    <insert id="insertUser" parameterType="com.buc.moa.user.vo.request.UserVO">
+        /* com.buc.moa.user.mapper.UserMapper.insertUser 사용자정보 저장 */
         INSERT INTO TB_USR
                    (
                      USR_ID            /* 사용자아이디 */
@@ -94,7 +94,7 @@
     </update>
 
     <!-- 비밀번호 복구 후 이전 PIN 인증정보를 폐기합니다. -->
-    <update id="clearPinPassword" parameterType="com.buc.ysc.user.vo.request.UserVO">
+    <update id="clearPinPassword" parameterType="com.buc.moa.user.vo.request.UserVO">
         UPDATE TB_USR
            SET PIN_PWD = NULL
              , LAST_MOD_USER_ID = #{lastModUserId}
@@ -103,8 +103,8 @@
     </update>
 
     <!-- PIN 비밀번호를 BCrypt 해시로 등록하거나 변경합니다. -->
-    <update id="updatePinPassword" parameterType="com.buc.ysc.user.vo.request.UserVO">
-        /* com.buc.ysc.user.mapper.UserMapper.updatePinPassword PIN 비밀번호 등록 */
+    <update id="updatePinPassword" parameterType="com.buc.moa.user.vo.request.UserVO">
+        /* com.buc.moa.user.mapper.UserMapper.updatePinPassword PIN 비밀번호 등록 */
         UPDATE TB_USR
            SET PIN_PWD = #{pinPwd}
              , LAST_MOD_USER_ID = #{lastModUserId}
@@ -119,7 +119,7 @@
     </update>
 
     <!-- 사용자의 닉네임을 변경합니다. -->
-    <update id="updateNickname" parameterType="com.buc.ysc.user.vo.request.UserVO">
+    <update id="updateNickname" parameterType="com.buc.moa.user.vo.request.UserVO">
         UPDATE TB_USR
            SET NCK_NM = #{nckNm}
              , LAST_MOD_USER_ID = #{lastModUserId}

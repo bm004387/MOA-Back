@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.buc.ysc.community.mapper.CommunityMapper">
+<mapper namespace="com.buc.moa.community.mapper.CommunityMapper">
 
     <!-- 로그인 사용자의 활성 게시물·승인된 팔로워·팔로잉 수를 조회합니다. -->
-    <select id="selectProfileSummary" resultType="com.buc.ysc.community.vo.CommunityProfileSummaryVO">
+    <select id="selectProfileSummary" resultType="com.buc.moa.community.vo.CommunityProfileSummaryVO">
         SELECT
                (
                    SELECT COUNT(*)
@@ -26,7 +26,7 @@
     </select>
 
     <!-- 선택한 사용자의 프로필 통계와 현재 로그인 사용자의 팔로우 상태를 조회합니다. -->
-    <select id="selectUserProfile" resultType="com.buc.ysc.community.vo.CommunityUserProfileVO">
+    <select id="selectUserProfile" resultType="com.buc.moa.community.vo.CommunityUserProfileVO">
         SELECT U.USR_ID AS usrId
              , U.NCK_NM AS usrNm
              , U.USR_NM AS userName
@@ -86,7 +86,7 @@
     </delete>
 
     <!-- 계정 테이블에서 직접 검색하여 게시물이 없는 사용자도 조회합니다. -->
-    <select id="searchUsers" resultType="com.buc.ysc.community.vo.CommunityUserSearchVO">
+    <select id="searchUsers" resultType="com.buc.moa.community.vo.CommunityUserSearchVO">
         SELECT U.USR_ID AS usrId
              , U.NCK_NM AS usrNm
              , U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
@@ -132,7 +132,7 @@
     </select>
 
     <!-- 팔로워·팔로잉 목록과 현재 사용자가 해당 계정을 팔로우하는지 조회합니다. -->
-    <select id="selectFollowUsers" resultType="com.buc.ysc.community.vo.CommunityUserSearchVO">
+    <select id="selectFollowUsers" resultType="com.buc.moa.community.vo.CommunityUserSearchVO">
         SELECT U.USR_ID AS usrId
              , U.NCK_NM AS usrNm
              , U.PRFL_IMG_FIL_SEQ AS profileImageFilSeq
@@ -165,7 +165,7 @@
     </select>
 
     <!-- 공개 범위 내에서 게시물 제목·본문·작성자 ID를 검색합니다. -->
-    <select id="searchPosts" resultType="com.buc.ysc.community.vo.CommunityPostRowVO">
+    <select id="searchPosts" resultType="com.buc.moa.community.vo.CommunityPostRowVO">
         SELECT P.POST_SEQ AS postSeq
              , P.USR_ID AS authorId
              , U.NCK_NM AS authorName
@@ -212,7 +212,7 @@
 
     <!-- 게시물 생성에 사용할 다음 일련번호를 조회합니다. -->
     <select id="nextPostSeq" resultType="long">
-        SELECT nextval('ysc.tb_comm_post_seq')
+        SELECT nextval('moa.tb_comm_post_seq')
     </select>
 
     <!-- 게시물 본문과 공개 범위를 저장합니다. -->
@@ -258,7 +258,7 @@
     </insert>
 
     <!-- 피드 종류에 맞춰 미조회 게시물 또는 내 게시물을 조회합니다. -->
-    <select id="selectFeed" resultType="com.buc.ysc.community.vo.CommunityPostRowVO">
+    <select id="selectFeed" resultType="com.buc.moa.community.vo.CommunityPostRowVO">
         SELECT
                P.POST_SEQ AS postSeq
             ,  P.USR_ID AS authorId
@@ -388,7 +388,7 @@
     </select>
 
     <!-- 게시물에 연결된 사진·동영상 파일 정보를 조회합니다. -->
-    <select id="selectMedia" resultType="com.buc.ysc.community.vo.CommunityPost$CommunityMedia">
+    <select id="selectMedia" resultType="com.buc.moa.community.vo.CommunityPost$CommunityMedia">
         SELECT
                PF.FIL_SEQ AS filSeq
             ,  COALESCE(M.MEDIA_NM, PF.MEDIA_TYP) AS mediaType
@@ -397,13 +397,13 @@
         JOIN FIL_DTL D ON D.FIL_SEQ = PF.FIL_SEQ
         LEFT JOIN (
             SELECT COM_DTL_CD, COM_DTL_NM AS MEDIA_NM
-              FROM ysc.TB_COM_CD_DTL
+              FROM moa.TB_COM_CD_DTL
              WHERE COM_CD = 'MEDIA_TYP'
                AND USE_YN = 'Y'
         ) M ON M.COM_DTL_CD = PF.MEDIA_TYP
         LEFT JOIN (
             SELECT COM_DTL_CD, COM_DTL_NM AS CONTENT_TYPE
-              FROM ysc.TB_COM_CD_DTL
+              FROM moa.TB_COM_CD_DTL
              WHERE COM_CD = 'CONT_TYP'
                AND USE_YN = 'Y'
         ) C ON C.COM_DTL_CD = D.CONT_TYP
@@ -431,7 +431,7 @@
     </select>
 
     <!-- 게시물의 활성 댓글과 댓글 작성자 프로필을 시간순으로 조회합니다. -->
-    <select id="selectComments" resultType="com.buc.ysc.community.vo.CommunityPost$CommunityComment">
+    <select id="selectComments" resultType="com.buc.moa.community.vo.CommunityPost$CommunityComment">
         SELECT
                C.CMT_SEQ AS cmtSeq
             ,  C.PARENT_CMT_SEQ AS parentCmtSeq
@@ -458,7 +458,7 @@
     </select>
 
     <!-- 여러 게시물별로 공개 권한을 확인한 뒤 최신 활성 댓글을 두 건까지 조회합니다. -->
-    <select id="selectCommentPreviews" resultType="com.buc.ysc.community.vo.CommunityCommentPreviewVO">
+    <select id="selectCommentPreviews" resultType="com.buc.moa.community.vo.CommunityCommentPreviewVO">
         WITH RANKED_COMMENTS AS (
             SELECT
                    C.POST_SEQ AS postSeq

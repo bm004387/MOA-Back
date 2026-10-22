@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.buc.ysc.notification.mapper.PushTokenMapper">
+<mapper namespace="com.buc.moa.notification.mapper.PushTokenMapper">
 
     <!-- 기기 토큰을 저장하고 기존 토큰이면 소유자와 플랫폼을 최신 값으로 갱신합니다. -->
     <insert id="upsertToken">

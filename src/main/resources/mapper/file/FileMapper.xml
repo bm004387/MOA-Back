@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.buc.ysc.file.mapper.FileMapper">
+<mapper namespace="com.buc.moa.file.mapper.FileMapper">
     <select id="nextFileSeq" resultType="long">
         SELECT nextval('FIL_BAS_SEQ')
     </select>
@@ -17,7 +17,7 @@
             (#{filSeq}, #{filDtlSeq}, #{orgFilNm}, #{savFilNm}, #{filExt}, #{filSz}, #{contTyp}, #{frstRegUserId})
     </insert>
 
-    <select id="selectFile" resultType="com.buc.ysc.file.vo.StoredFile">
+    <select id="selectFile" resultType="com.buc.moa.file.vo.StoredFile">
         SELECT B.FIL_PTH AS filPth,
                B.FIL_CD AS filCd,
                D.SAV_FIL_NM AS savFilNm,

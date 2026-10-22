@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.buc.ysc.common.menu.mapper.MenuMapper">
+<mapper namespace="com.buc.moa.common.menu.mapper.MenuMapper">
     <!-- 하단 메뉴와 연결된 파일 기본·상세 정보를 조회합니다. -->
-    <select id="getBottomMenuList" resultType="com.buc.ysc.common.menu.vo.MenuVO">
+    <select id="getBottomMenuList" resultType="com.buc.moa.common.menu.vo.MenuVO">
         SELECT m.menu_id AS "menuId"
              , m.menu_nm AS "menuName"
              , fd.fil_seq AS "icoFilSeq"
              , p.pgm_cd AS "programCode"
              , p.pgm_url AS "programUrl"
-          FROM ysc.menu_mng m
-          JOIN ysc.pgm_mng p
+          FROM moa.menu_mng m
+          JOIN moa.pgm_mng p
             ON p.pgm_cd = m.pgm_cd
-          LEFT JOIN ysc.fil_bas fb
+          LEFT JOIN moa.fil_bas fb
             ON fb.fil_seq = m.ico_fil_seq
-          LEFT JOIN ysc.fil_dtl fd
+          LEFT JOIN moa.fil_dtl fd
             ON fd.fil_seq = fb.fil_seq
            AND fd.fil_dtl_seq = 1
          WHERE m.menu_lvl = 1
@@ -24,7 +24,7 @@
     </select>
 
     <!-- 전체 메뉴와 연결된 아이콘 파일 일련번호를 조회합니다. -->
-    <select id="getAllMenuList" resultType="com.buc.ysc.common.menu.vo.MenuVO">
+    <select id="getAllMenuList" resultType="com.buc.moa.common.menu.vo.MenuVO">
         SELECT m.menu_id AS "menuId"
              , m.menu_nm AS "menuName"
              , m.up_menu_id AS "upperMenuId"
@@ -34,13 +34,13 @@
              , fd.fil_seq AS "icoFilSeq"
              , p.pgm_cd AS "programCode"
              , p.pgm_url AS "programUrl"
-          FROM ysc.menu_mng m
-          LEFT JOIN ysc.pgm_mng p
+          FROM moa.menu_mng m
+          LEFT JOIN moa.pgm_mng p
             ON p.pgm_cd = m.pgm_cd
            AND p.use_yn = 'Y'
-          LEFT JOIN ysc.fil_bas fb
+          LEFT JOIN moa.fil_bas fb
             ON fb.fil_seq = m.ico_fil_seq
-          LEFT JOIN ysc.fil_dtl fd
+          LEFT JOIN moa.fil_dtl fd
             ON fd.fil_seq = fb.fil_seq
            AND fd.fil_dtl_seq = 1
          WHERE m.use_yn = 'Y'
@@ -51,10 +51,10 @@
     <select id="isMenuIcon" resultType="boolean">
         SELECT EXISTS (
             SELECT 1
-              FROM ysc.menu_mng m
-              JOIN ysc.fil_bas fb
+              FROM moa.menu_mng m
+              JOIN moa.fil_bas fb
                 ON fb.fil_seq = m.ico_fil_seq
-              JOIN ysc.fil_dtl fd
+              JOIN moa.fil_dtl fd
                 ON fd.fil_seq = fb.fil_seq
                AND fd.fil_dtl_seq = 1
              WHERE m.ico_fil_seq = #{_parameter}

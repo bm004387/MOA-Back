@@ -2,18 +2,21 @@
 
 set -Eeuo pipefail
 
-APP_NAME="ysc-backend"
-IMAGE_NAME="ysc-backend:latest"
-NETWORK_NAME="ysc_default"
+APP_NAME="moa-backend"
+IMAGE_NAME="moa-backend:latest"
+LEGACY_APP_NAME="ysc-backend"
+NETWORK_NAME="${DOCKER_NETWORK_NAME:-moa_default}"
+LEGACY_CONTAINER_STOPPED=0
 ENV_FILE=".env.prod"
-UPLOAD_DIR="${HOME}/ysc-uploads"
+UPLOAD_DIR="${HOME}/moa-uploads"
+LEGACY_UPLOAD_DIR="${HOME}/ysc-uploads"
 UPLOAD_CONTAINER_PATH="/app/uploads"
 MESSAGE_CACHE_URL="http://127.0.0.1:8080/api/msg/all"
 MESSAGE_CACHE_RESPONSE=""
 COMMON_CODE_CACHE_URL="http://127.0.0.1:8080/api/common-codes/refresh"
 COMMON_CODE_CACHE_RESPONSE=""
 DEPLOY_CURL_CONFIG=""
-FIREBASE_CREDENTIALS_FILE="${FIREBASE_CREDENTIALS_FILE:-${HOME}/firebase/ysc-firebase-service-account.json}"
+FIREBASE_CREDENTIALS_FILE="${FIREBASE_CREDENTIALS_FILE:-${HOME}/firebase/moa-firebase-service-account.json}"
 
 log() {
     local level="$1"
@@ -27,6 +30,15 @@ on_error() {
     if docker container inspect "$APP_NAME" >/dev/null 2>&1; then
         log ERROR "실패한 컨테이너의 최근 로그"
         docker logs --tail 80 "$APP_NAME" 2>&1 || true
+    fi
+    if [[ "$LEGACY_CONTAINER_STOPPED" -eq 1 ]] \
+        && docker container inspect "$LEGACY_APP_NAME" >/dev/null 2>&1; then
+        docker rm -f "$APP_NAME" >/dev/null 2>&1 || true
+        if docker start "$LEGACY_APP_NAME" >/dev/null; then
+            log WARN "MOA 배포가 실패해 기존 애플리케이션 컨테이너를 다시 시작했습니다."
+        else
+            log ERROR "기존 애플리케이션 컨테이너 자동 복구에 실패했습니다."
+        fi
     fi
     exit "$exit_code"
 }
@@ -46,7 +58,7 @@ cleanup() {
 trap on_error ERR
 trap cleanup EXIT
 
-log INFO "YSC Backend 배포 시작"
+log INFO "MOA Backend 배포 시작"
 log INFO "대상 컨테이너=$APP_NAME, 이미지=$IMAGE_NAME, 네트워크=$NETWORK_NAME"
 
 log INFO "[1/9] main 브랜치 최신 코드 가져오기"
@@ -73,8 +85,14 @@ elif [[ ! "$DEPLOY_API_TOKEN" =~ ^[[:xdigit:]]{64}$ ]]; then
     exit 1
 fi
 if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
-    log ERROR "Docker 네트워크를 찾을 수 없습니다: $NETWORK_NAME"
-    exit 1
+    if [[ "$NETWORK_NAME" == "moa_default" ]] \
+        && docker network inspect "ysc_default" >/dev/null 2>&1; then
+        NETWORK_NAME="ysc_default"
+        log WARN "MOA 네트워크가 아직 없어 기존 네트워크를 임시 사용합니다."
+    else
+        log ERROR "Docker 네트워크를 찾을 수 없습니다: $NETWORK_NAME"
+        exit 1
+    fi
 fi
 
 log INFO "[3/9] Gradle 빌드 및 검증"
@@ -85,12 +103,26 @@ docker build --pull -t "$IMAGE_NAME" .
 
 log INFO "[5/9] 업로드 파일 저장소 준비"
 mkdir -p "$UPLOAD_DIR"
-if [[ -z "$(find "$UPLOAD_DIR" -mindepth 1 -print -quit)" ]] \
-    && docker container inspect "$APP_NAME" >/dev/null 2>&1 \
-    && docker exec "$APP_NAME" test -d "$UPLOAD_CONTAINER_PATH"; then
-    # 기존 컨테이너의 업로드를 영구 호스트 디렉터리로 옮겨 컨테이너 교체 후에도 보존합니다.
-    docker cp "$APP_NAME:$UPLOAD_CONTAINER_PATH/." "$UPLOAD_DIR/"
-    log INFO "기존 컨테이너의 업로드 파일을 영구 저장 경로로 복사했습니다."
+if [[ -z "$(find "$UPLOAD_DIR" -mindepth 1 -print -quit)" ]]; then
+    if [[ -d "$LEGACY_UPLOAD_DIR" ]] \
+        && [[ -n "$(find "$LEGACY_UPLOAD_DIR" -mindepth 1 -print -quit)" ]]; then
+        # 이름 변경 전 호스트 볼륨을 복사해 기존 업로드를 보존합니다.
+        cp -a "$LEGACY_UPLOAD_DIR"/. "$UPLOAD_DIR"/
+        log INFO "기존 호스트 업로드를 새 저장 경로로 복사했습니다."
+    elif docker container inspect "$LEGACY_APP_NAME" >/dev/null 2>&1; then
+        # 구 컨테이너에만 남아 있는 업로드도 새 경로로 복사합니다.
+        if docker cp "$LEGACY_APP_NAME:$UPLOAD_CONTAINER_PATH/." "$UPLOAD_DIR/"; then
+            log INFO "기존 컨테이너 업로드를 새 저장 경로로 복사했습니다."
+        else
+            log WARN "기존 컨테이너 안에서 업로드 디렉터리를 찾지 못했습니다."
+        fi
+    elif docker container inspect "$APP_NAME" >/dev/null 2>&1; then
+        if docker cp "$APP_NAME:$UPLOAD_CONTAINER_PATH/." "$UPLOAD_DIR/"; then
+            log INFO "기존 MOA 컨테이너 업로드를 영구 저장 경로로 복사했습니다."
+        else
+            log WARN "기존 MOA 컨테이너 안에서 업로드 디렉터리를 찾지 못했습니다."
+        fi
+    fi
 fi
 
 log INFO "[6/9] 기존 애플리케이션 컨테이너 교체"
@@ -99,6 +131,13 @@ if docker container inspect "$APP_NAME" >/dev/null 2>&1; then
     log INFO "기존 컨테이너를 제거했습니다."
 else
     log INFO "기존 컨테이너가 없어 신규 배포로 진행합니다."
+fi
+if docker container inspect "$LEGACY_APP_NAME" >/dev/null 2>&1; then
+    if [[ "$(docker inspect --format '{{.State.Running}}' "$LEGACY_APP_NAME")" == "true" ]]; then
+        docker stop "$LEGACY_APP_NAME" >/dev/null
+        LEGACY_CONTAINER_STOPPED=1
+        log INFO "새 포트 바인딩을 위해 기존 YSC 컨테이너를 중지했습니다."
+    fi
 fi
 
 log INFO "[7/9] 새 애플리케이션 컨테이너 시작"
@@ -114,7 +153,7 @@ DOCKER_RUN_ARGS=(
     --publish 127.0.0.1:8080:8080
     --volume "$UPLOAD_DIR:$UPLOAD_CONTAINER_PATH"
     --restart unless-stopped
-    --label "com.ysc.deploy.commit=$DEPLOY_COMMIT"
+    --label "com.moa.deploy.commit=$DEPLOY_COMMIT"
 )
 
 if grep -Eq '^[[:space:]]*APP_PUSH_ENABLED=true([[:space:]]|$)' "$ENV_FILE"; then
@@ -202,6 +241,12 @@ else
     COMMON_CODE_COUNT="확인 생략(jq 미설치)"
 fi
 log INFO "공통코드 Redis 캐시 갱신 완료 (항목=${COMMON_CODE_COUNT})"
+
+if docker container inspect "$LEGACY_APP_NAME" >/dev/null 2>&1; then
+    docker rm "$LEGACY_APP_NAME" >/dev/null
+    LEGACY_CONTAINER_STOPPED=0
+    log INFO "MOA 기동 확인 후 기존 YSC 애플리케이션 컨테이너를 정리했습니다."
+fi
 
 log INFO "[9/9] 배포 결과"
 docker ps --filter "name=^/${APP_NAME}$" --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'

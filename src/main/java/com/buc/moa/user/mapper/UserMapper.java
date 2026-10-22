@@ -1,0 +1,30 @@
+package com.buc.moa.user.mapper;
+
+import com.buc.moa.user.vo.request.UserVO;
+
+public interface UserMapper {
+
+    UserVO selectByUsrId(String usrId);
+
+    int existsByUsrId(String usrId);
+
+    boolean existsHpNo(String hpNo);
+
+    String selectUsrIdByHpNo(String hpNo);
+
+
+    void insertUser(UserVO usrId);
+
+    int updatePassword(UserVO user);
+
+    int clearPinPassword(UserVO user);
+
+    int updatePinPassword(UserVO user);
+
+    int updateAddress(UserVO user);
+
+    int updateNickname(UserVO user);
+
+    int updateProfileImageFileSeq(UserVO user);
+
+}
