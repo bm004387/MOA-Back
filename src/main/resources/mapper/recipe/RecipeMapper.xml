@@ -66,7 +66,9 @@
                     )
                 )
            )
-           AND (#{categoryCode} IS NULL OR R.RCP_CTG_CD = #{categoryCode})
+        <if test="categoryCode != null and categoryCode != ''">
+           AND R.RCP_CTG_CD = #{categoryCode}
+        </if>
            AND (
                 #{query} = ''
                 OR P.POST_TTL ILIKE '%' || #{query} || '%'
