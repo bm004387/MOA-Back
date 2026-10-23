@@ -55,7 +55,7 @@ public class RecipeServiceImpl implements RecipeService {
                 code("VIS_TYP", "PUBLIC"), code("FOLLOW_STAT", "ACCEPTED")) == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, msgUtil.getMsg("RECIPE", "002"));
         }
-        RecipeVO recipe = mapper.selectRecipe(postSeq, session.usrId());
+        RecipeVO recipe = mapper.selectRecipe(postSeq, session.usrId(), code("POST_STAT", "ACTIVE"));
         if (recipe == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, msgUtil.getMsg("RECIPE", "002"));
         }

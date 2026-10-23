@@ -13,7 +13,7 @@ public interface RecipeMapper {
             int limit, String postActive, String publicVisibility, String followAccepted);
 
     /** 레시피 한 건과 사용자의 저장 여부를 반환합니다. */
-    RecipeVO selectRecipe(Long postSeq, String usrId);
+    RecipeVO selectRecipe(Long postSeq, String usrId, String postActive);
 
     /** 레시피의 재료 목록을 순서대로 반환합니다. */
     List<RecipeIngredientVO> selectIngredients(Long postSeq);
