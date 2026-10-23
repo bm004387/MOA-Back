@@ -1,6 +1,8 @@
 package com.buc.moa.recipe.mapper;
 
 import com.buc.moa.recipe.vo.RecipeIngredientVO;
+import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
+import com.buc.moa.recipe.vo.RecipeIngredientCreateVO;
 import com.buc.moa.recipe.vo.RecipeStepVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import java.util.List;
@@ -14,6 +16,21 @@ public interface RecipeMapper {
 
     /** 레시피 한 건과 사용자의 저장 여부를 반환합니다. */
     RecipeVO selectRecipe(Long postSeq, String usrId, String postActive);
+
+    /** 새 게시물에 사용할 일련번호를 생성합니다. */
+    Long nextPostSeq();
+
+    /** 레시피 본문 게시물을 저장합니다. */
+    int insertRecipePost(RecipeCreateRequestVO request);
+
+    /** 레시피 분류와 조리 정보를 저장합니다. */
+    int insertRecipe(RecipeCreateRequestVO request);
+
+    /** 코드 기반 재료와 계량 정보를 저장합니다. */
+    int insertRecipeIngredient(RecipeIngredientCreateVO ingredient);
+
+    /** 조리 단계를 저장합니다. */
+    int insertRecipeStep(RecipeStepVO step);
 
     /** 레시피의 재료 목록을 순서대로 반환합니다. */
     List<RecipeIngredientVO> selectIngredients(Long postSeq);

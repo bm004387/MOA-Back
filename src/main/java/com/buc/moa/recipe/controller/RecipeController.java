@@ -1,12 +1,14 @@
 package com.buc.moa.recipe.controller;
 
 import com.buc.moa.recipe.service.RecipeService;
+import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeSaveRequestVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -38,6 +40,14 @@ public class RecipeController {
     public RecipeVO recipe(@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @PathVariable Long postSeq) {
         return service.recipe(authorizationHeader, postSeq);
+    }
+
+    /** 레시피와 재료·조리 단계를 새 게시물로 등록합니다. */
+    @PostMapping
+    public Map<String, Long> createRecipe(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody RecipeCreateRequestVO request) {
+        return Map.of("postSeq", service.createRecipe(authorizationHeader, request));
     }
 
     /** 레시피를 저장하거나 저장 취소합니다. */

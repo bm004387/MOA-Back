@@ -11,6 +11,8 @@ public class RecipeIngredientVO {
 
     private Integer sortOrd;
     private Long ingrSeq;
+    private String ingredientGroupCode;
+    private String ingredientCode;
     private String ingrName;
     private BigDecimal ingrAmt;
     private String unitCode;

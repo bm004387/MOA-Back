@@ -131,16 +131,116 @@
            AND P.POST_STAT IN (#{postActive}, 'ACTIVE')
     </select>
 
+    <!-- 레시피 게시물에 사용할 일련번호를 생성합니다. -->
+    <select id="nextPostSeq" resultType="long">
+        SELECT nextval('moa.tb_comm_post_seq')
+    </select>
+
+    <!-- 제목·내용과 공개 범위를 포함한 레시피 게시물을 저장합니다. -->
+    <insert id="insertRecipePost">
+        INSERT INTO moa.TB_COMM_POST (
+            POST_SEQ
+            , USR_ID
+            , POST_TTL
+            , POST_CN
+            , POST_STAT
+            , VIS_TYP
+            , POST_DTM
+            , FRST_REG_USER_ID
+        )
+        VALUES (
+            #{postSeq}
+            , #{usrId}
+            , #{title}
+            , #{description}
+            , #{postStat}
+            , #{visibility}
+            , CURRENT_TIMESTAMP
+            , #{frstRegUserId}
+        )
+    </insert>
+
+    <!-- 게시물의 분류·조리 시간·인분·난이도를 저장합니다. -->
+    <insert id="insertRecipe">
+        INSERT INTO moa.TB_RCP (
+            POST_SEQ
+            , RCP_CTG_CD
+            , COOK_MIN
+            , SERV_QTY
+            , RCP_DIF_CD
+            , FRST_REG_USER_ID
+        )
+        VALUES (
+            #{postSeq}
+            , #{categoryCode}
+            , #{cookingMinutes}
+            , #{servings}
+            , #{difficultyCode}
+            , #{frstRegUserId}
+        )
+    </insert>
+
+    <!-- 재료 공통코드와 표시용 이름, 수량·계량 단위를 저장합니다. -->
+    <insert id="insertRecipeIngredient">
+        INSERT INTO moa.TB_RCP_INGR (
+            POST_SEQ
+            , SORT_ORD
+            , INGR_GRP_CD
+            , INGR_CD
+            , INGR_NM_SNAP
+            , INGR_AMT
+            , UNIT_CD
+            , NOTE
+            , FRST_REG_USER_ID
+        )
+        VALUES (
+            #{postSeq}
+            , #{sortOrd}
+            , #{ingredientGroupCode}
+            , #{ingredientCode}
+            , #{ingredientName}
+            , #{ingrAmt}
+            , #{unitCode}
+            , #{note}
+            , #{frstRegUserId}
+        )
+    </insert>
+
+    <!-- 순서가 지정된 레시피 조리 단계를 저장합니다. -->
+    <insert id="insertRecipeStep">
+        INSERT INTO moa.TB_RCP_STP (
+            POST_SEQ
+            , STEP_NO
+            , STEP_CN
+            , COOK_SEC
+            , STEP_FIL_SEQ
+            , FRST_REG_USER_ID
+        )
+        VALUES (
+            #{postSeq}
+            , #{stepNo}
+            , #{content}
+            , #{cookSec}
+            , #{stepFilSeq}
+            , #{frstRegUserId}
+        )
+    </insert>
+
     <!-- 레시피 재료와 단위 설명을 정렬 순서대로 조회합니다. -->
     <select id="selectIngredients" resultType="com.buc.moa.recipe.vo.RecipeIngredientVO">
         SELECT RI.SORT_ORD AS "sortOrd"
              , RI.INGR_SEQ AS "ingrSeq"
-             , RI.INGR_NM_SNAP AS "ingrName"
+             , RI.INGR_GRP_CD AS "ingredientGroupCode"
+             , RI.INGR_CD AS "ingredientCode"
+             , COALESCE(IC.COM_DTL_DESC, RI.INGR_NM_SNAP) AS "ingrName"
              , RI.INGR_AMT AS "ingrAmt"
              , RI.UNIT_CD AS "unitCode"
              , UC.COM_DTL_DESC AS "unitName"
              , RI.NOTE AS "note"
           FROM moa.TB_RCP_INGR RI
+          LEFT JOIN moa.TB_COM_CD_DTL IC
+            ON IC.COM_CD = RI.INGR_GRP_CD
+           AND IC.COM_DTL_CD = RI.INGR_CD
           LEFT JOIN moa.TB_COM_CD_DTL UC
             ON UC.COM_CD = 'RCP_UNIT'
            AND UC.COM_DTL_CD = RI.UNIT_CD
