@@ -3,6 +3,7 @@ package com.buc.moa.config;
 import com.buc.moa.security.AccessTokenAuthenticationFilter;
 import com.buc.moa.security.ApiSecurityErrorHandler;
 import com.buc.moa.security.SessionManager;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -35,6 +36,9 @@ public class WebConfig {
             .accessDeniedHandler(errorHandler))
             .authorizeHttpRequests(authorize -> authorize
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            // 오류 전달은 최초 요청의 인증 컨텍스트가 이미 정리된 뒤 실행될 수 있습니다.
+            // ERROR dispatch만 허용해 실제 오류 응답이 401로 덮이지 않도록 합니다.
+            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
             .requestMatchers(HttpMethod.POST,
                                 "/api/auth/signup",
                                 "/api/auth/login",
