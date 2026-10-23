@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.buc.moa.recipe.mapper.RecipeMapper">
+
+    <!-- 사용자가 열람할 수 있는 레시피를 검색·범위·분류 조건으로 조회합니다. -->
+    <select id="selectRecipes" resultType="com.buc.moa.recipe.vo.RecipeVO">
+        SELECT P.POST_SEQ AS "postSeq"
+             , P.POST_TTL AS "title"
+             , P.POST_CN AS "description"
+             , R.RCP_CTG_CD AS "categoryCode"
+             , CT.COM_DTL_DESC AS "categoryName"
+             , R.COOK_MIN AS "cookingMinutes"
+             , R.SERV_QTY AS "servings"
+             , R.RCP_DIF_CD AS "difficultyCode"
+             , DF.COM_DTL_DESC AS "difficultyName"
+             , P.USR_ID AS "authorId"
+             , U.NCK_NM AS "authorName"
+             , U.PRFL_IMG_FIL_SEQ AS "profileImageFilSeq"
+             , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS "createdAt"
+             , (SELECT COUNT(*)
+                  FROM moa.TB_COMM_POST_LIKE L
+                 WHERE L.POST_SEQ = P.POST_SEQ) AS "likeCount"
+             , (SELECT COUNT(*)
+                  FROM moa.TB_COMM_POST_SAVE S
+                 WHERE S.POST_SEQ = P.POST_SEQ) AS "saveCount"
+             , EXISTS (
+                   SELECT 1
+                     FROM moa.TB_COMM_POST_SAVE S
+                    WHERE S.POST_SEQ = P.POST_SEQ
+                      AND S.USR_ID = #{usrId}
+               ) AS "savedByMe"
+             , (P.USR_ID = #{usrId}) AS "mine"
+          FROM moa.TB_COMM_POST P
+          JOIN moa.TB_RCP R
+            ON R.POST_SEQ = P.POST_SEQ
+          JOIN moa.TB_USR U
+            ON U.USR_ID = P.USR_ID
+          LEFT JOIN moa.TB_COM_CD_DTL CT
+            ON CT.COM_CD = 'RCP_CTG'
+           AND CT.COM_DTL_CD = R.RCP_CTG_CD
+          LEFT JOIN moa.TB_COM_CD_DTL DF
+            ON DF.COM_CD = 'RCP_DIF'
+           AND DF.COM_DTL_CD = R.RCP_DIF_CD
+         WHERE P.POST_STAT IN (#{postActive}, 'ACTIVE')
+           AND (
+                P.VIS_TYP IN (#{publicVisibility}, 'PUBLIC')
+                OR P.USR_ID = #{usrId}
+                OR EXISTS (
+                    SELECT 1
+                      FROM moa.TB_COMM_FOLLOW F
+                     WHERE F.FOLLOWER_USR_ID = #{usrId}
+                       AND F.FOLLOWING_USR_ID = P.USR_ID
+                       AND F.FOLLOW_STAT IN (#{followAccepted}, 'ACCEPTED')
+                )
+           )
+           AND (
+                #{scope} = 'all'
+                OR (#{scope} = 'mine' AND P.USR_ID = #{usrId})
+                OR (
+                    #{scope} = 'saved'
+                    AND EXISTS (
+                        SELECT 1
+                          FROM moa.TB_COMM_POST_SAVE S
+                         WHERE S.POST_SEQ = P.POST_SEQ
+                           AND S.USR_ID = #{usrId}
+                    )
+                )
+           )
+           AND (#{categoryCode} IS NULL OR R.RCP_CTG_CD = #{categoryCode})
+           AND (
+                #{query} = ''
+                OR P.POST_TTL ILIKE '%' || #{query} || '%'
+                OR P.POST_CN ILIKE '%' || #{query} || '%'
+                OR EXISTS (
+                    SELECT 1
+                      FROM moa.TB_RCP_INGR RI
+                     WHERE RI.POST_SEQ = P.POST_SEQ
+                       AND RI.INGR_NM_SNAP ILIKE '%' || #{query} || '%'
+                )
+           )
+         ORDER BY (P.USR_ID = #{usrId}) DESC
+                , (SELECT COUNT(*)
+                     FROM moa.TB_COMM_POST_SAVE S
+                    WHERE S.POST_SEQ = P.POST_SEQ) DESC
+                , P.POST_DTM DESC
+         LIMIT #{limit}
+    </select>
+
+    <!-- 레시피 상세 화면의 기본 정보와 반응 수를 조회합니다. -->
+    <select id="selectRecipe" resultType="com.buc.moa.recipe.vo.RecipeVO">
+        SELECT P.POST_SEQ AS "postSeq"
+             , P.POST_TTL AS "title"
+             , P.POST_CN AS "description"
+             , R.RCP_CTG_CD AS "categoryCode"
+             , CT.COM_DTL_DESC AS "categoryName"
+             , R.COOK_MIN AS "cookingMinutes"
+             , R.SERV_QTY AS "servings"
+             , R.RCP_DIF_CD AS "difficultyCode"
+             , DF.COM_DTL_DESC AS "difficultyName"
+             , P.USR_ID AS "authorId"
+             , U.NCK_NM AS "authorName"
+             , U.PRFL_IMG_FIL_SEQ AS "profileImageFilSeq"
+             , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS "createdAt"
+             , (SELECT COUNT(*)
+                  FROM moa.TB_COMM_POST_LIKE L
+                 WHERE L.POST_SEQ = P.POST_SEQ) AS "likeCount"
+             , (SELECT COUNT(*)
+                  FROM moa.TB_COMM_POST_SAVE S
+                 WHERE S.POST_SEQ = P.POST_SEQ) AS "saveCount"
+             , EXISTS (
+                   SELECT 1
+                     FROM moa.TB_COMM_POST_SAVE S
+                    WHERE S.POST_SEQ = P.POST_SEQ
+                      AND S.USR_ID = #{usrId}
+               ) AS "savedByMe"
+             , (P.USR_ID = #{usrId}) AS "mine"
+          FROM moa.TB_COMM_POST P
+          JOIN moa.TB_RCP R
+            ON R.POST_SEQ = P.POST_SEQ
+          JOIN moa.TB_USR U
+            ON U.USR_ID = P.USR_ID
+          LEFT JOIN moa.TB_COM_CD_DTL CT
+            ON CT.COM_CD = 'RCP_CTG'
+           AND CT.COM_DTL_CD = R.RCP_CTG_CD
+          LEFT JOIN moa.TB_COM_CD_DTL DF
+            ON DF.COM_CD = 'RCP_DIF'
+           AND DF.COM_DTL_CD = R.RCP_DIF_CD
+         WHERE P.POST_SEQ = #{postSeq}
+           AND P.POST_STAT IN (#{postActive}, 'ACTIVE')
+    </select>
+
+    <!-- 레시피 재료와 단위 설명을 정렬 순서대로 조회합니다. -->
+    <select id="selectIngredients" resultType="com.buc.moa.recipe.vo.RecipeIngredientVO">
+        SELECT RI.SORT_ORD AS "sortOrd"
+             , RI.INGR_SEQ AS "ingrSeq"
+             , RI.INGR_NM_SNAP AS "ingrName"
+             , RI.INGR_AMT AS "ingrAmt"
+             , RI.UNIT_CD AS "unitCode"
+             , UC.COM_DTL_DESC AS "unitName"
+             , RI.NOTE AS "note"
+          FROM moa.TB_RCP_INGR RI
+          LEFT JOIN moa.TB_COM_CD_DTL UC
+            ON UC.COM_CD = 'RCP_UNIT'
+           AND UC.COM_DTL_CD = RI.UNIT_CD
+         WHERE RI.POST_SEQ = #{postSeq}
+         ORDER BY RI.SORT_ORD
+    </select>
+
+    <!-- 레시피의 조리 단계를 순서대로 조회합니다. -->
+    <select id="selectSteps" resultType="com.buc.moa.recipe.vo.RecipeStepVO">
+        SELECT S.STEP_NO AS "stepNo"
+             , S.STEP_CN AS "content"
+             , S.COOK_SEC AS "cookSec"
+             , S.STEP_FIL_SEQ AS "stepFilSeq"
+          FROM moa.TB_RCP_STP S
+         WHERE S.POST_SEQ = #{postSeq}
+         ORDER BY S.STEP_NO
+    </select>
+
+    <!-- 게시 상태와 공개 범위에 따라 레시피 열람 권한을 검사합니다. -->
+    <select id="canReadRecipe" resultType="int">
+        SELECT COUNT(*)
+          FROM moa.TB_COMM_POST P
+          JOIN moa.TB_RCP R
+            ON R.POST_SEQ = P.POST_SEQ
+         WHERE P.POST_SEQ = #{postSeq}
+           AND P.POST_STAT IN (#{postActive}, 'ACTIVE')
+           AND (
+                P.VIS_TYP IN (#{publicVisibility}, 'PUBLIC')
+                OR P.USR_ID = #{usrId}
+                OR EXISTS (
+                    SELECT 1
+                      FROM moa.TB_COMM_FOLLOW F
+                     WHERE F.FOLLOWER_USR_ID = #{usrId}
+                       AND F.FOLLOWING_USR_ID = P.USR_ID
+                       AND F.FOLLOW_STAT IN (#{followAccepted}, 'ACCEPTED')
+                )
+           )
+    </select>
+
+    <!-- 로그인 사용자의 저장 목록에 레시피를 추가합니다. -->
+    <insert id="addSave">
+        INSERT INTO moa.TB_COMM_POST_SAVE (
+            POST_SEQ
+            , USR_ID
+            , FRST_REG_USER_ID
+        )
+        VALUES (
+            #{postSeq}
+            , #{usrId}
+            , #{usrId}
+        )
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <!-- 로그인 사용자의 저장 목록에서 레시피를 제거합니다. -->
+    <delete id="removeSave">
+        DELETE FROM moa.TB_COMM_POST_SAVE
+         WHERE POST_SEQ = #{postSeq}
+           AND USR_ID = #{usrId}
+    </delete>
+</mapper>
