@@ -404,8 +404,6 @@
             , SORT_ORD
             , MEDIA_TYP
             , FRST_REG_USER_ID
-            , LAST_MOD_USER_ID
-            , LAST_MOD_DTM
         )
         VALUES (
             #{postSeq}
@@ -413,8 +411,6 @@
             , 1
             , #{mediaType}
             , #{frstRegUserId}
-            , #{lastModUserId}
-            , TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
         )
     </insert>
 
@@ -423,8 +419,6 @@
         UPDATE moa.TB_COMM_POST_FILE
            SET FIL_SEQ = #{filSeq}
              , MEDIA_TYP = #{mediaType}
-             , LAST_MOD_USER_ID = #{lastModUserId}
-             , LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
          WHERE POST_SEQ = #{postSeq}
            AND SORT_ORD = 1
     </update>
