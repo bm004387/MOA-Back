@@ -12,6 +12,7 @@ public class RecipeIngredientCreateVO extends CommonVO {
 
     private Long postSeq;
     private Integer sortOrd;
+    private Long ingrSeq;
     private String ingredientGroupCode;
     private String ingredientCode;
     private String ingredientName;

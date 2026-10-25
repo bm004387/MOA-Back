@@ -205,11 +205,21 @@
         )
     </insert>
 
+    <!-- 공통코드에서 선택한 재료명에 대응하는 사용 중 재료 마스터 일련번호를 조회합니다. -->
+    <select id="selectIngredientSeqs" resultType="long">
+        SELECT I.INGR_SEQ
+          FROM moa.TB_INGR I
+         WHERE I.INGR_NM = #{ingredientName}
+           AND I.USE_YN = 'Y'
+         ORDER BY I.INGR_SEQ
+    </select>
+
     <!-- 재료 공통코드와 표시용 이름, 수량·계량 단위를 저장합니다. -->
     <insert id="insertRecipeIngredient">
         INSERT INTO moa.TB_RCP_INGR (
             POST_SEQ
             , SORT_ORD
+            , INGR_SEQ
             , INGR_GRP_CD
             , INGR_CD
             , INGR_NM_SNAP
@@ -221,6 +231,7 @@
         VALUES (
             #{postSeq}
             , #{sortOrd}
+            , #{ingrSeq}
             , #{ingredientGroupCode}
             , #{ingredientCode}
             , #{ingredientName}

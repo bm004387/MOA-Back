@@ -216,6 +216,12 @@ public class RecipeServiceImpl implements RecipeService {
                 throw badRequest("008");
             }
 
+            List<Long> ingredientSeqs = mapper.selectIngredientSeqs(ingredient.getIngredientName());
+            if (ingredientSeqs.size() != 1) {
+                throw badRequest("008");
+            }
+            ingredient.setIngrSeq(ingredientSeqs.get(0));
+
             String amount = ingredient.getAmount() == null ? "" : ingredient.getAmount().trim();
             if (!amount.isEmpty()) {
                 try {

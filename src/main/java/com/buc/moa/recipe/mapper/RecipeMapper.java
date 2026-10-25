@@ -29,6 +29,9 @@ public interface RecipeMapper {
     /** 레시피 분류와 조리 정보를 저장합니다. */
     int insertRecipe(RecipeCreateRequestVO request);
 
+    /** 사용 중인 재료명에 대응하는 재료 마스터 일련번호를 조회합니다. */
+    List<Long> selectIngredientSeqs(String ingredientName);
+
     /** 코드 기반 재료와 계량 정보를 저장합니다. */
     int insertRecipeIngredient(RecipeIngredientCreateVO ingredient);
 
