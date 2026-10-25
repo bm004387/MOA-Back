@@ -4,6 +4,7 @@ import com.buc.moa.recipe.service.RecipeService;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeListResultVO;
 import com.buc.moa.recipe.vo.RecipeSaveRequestVO;
+import com.buc.moa.recipe.vo.RecipeIngredientUnitVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,13 @@ public class RecipeController {
             response.header("X-Saved-Count", String.valueOf(result.savedCount()));
         }
         return response.body(result.recipes());
+    }
+
+    /** 재료별로 선택 가능한 계량 단위 연결 목록을 조회합니다. */
+    @GetMapping("/ingredient-units")
+    public List<RecipeIngredientUnitVO> ingredientUnits(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        return service.ingredientUnits(authorizationHeader);
     }
 
     /** 레시피 상세와 재료·조리 순서를 조회합니다. */

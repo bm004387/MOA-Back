@@ -4,6 +4,7 @@ import com.buc.moa.recipe.mapper.RecipeMapper;
 import com.buc.moa.recipe.service.RecipeService;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeIngredientCreateVO;
+import com.buc.moa.recipe.vo.RecipeIngredientUnitVO;
 import com.buc.moa.recipe.vo.RecipeListResultVO;
 import com.buc.moa.recipe.vo.RecipeStepVO;
 import com.buc.moa.recipe.vo.RecipeVO;
@@ -73,6 +74,13 @@ public class RecipeServiceImpl implements RecipeService {
         recipe.setIngredients(mapper.selectIngredients(postSeq));
         recipe.setSteps(mapper.selectSteps(postSeq));
         return recipe;
+    }
+
+    /** 로그인 세션을 확인하고 사용 중인 재료-계량 단위 연결을 반환합니다. */
+    @Override
+    public List<RecipeIngredientUnitVO> ingredientUnits(String authorizationHeader) {
+        requireSession(authorizationHeader);
+        return mapper.selectIngredientUnits();
     }
 
     /** 레시피·재료·조리 단계를 한 트랜잭션으로 저장하고 게시물 일련번호를 반환합니다. */
@@ -211,6 +219,10 @@ public class RecipeServiceImpl implements RecipeService {
                         ingredient.getIngredientCode().trim()));
                 if (ingredient.getUnitCode() != null && !ingredient.getUnitCode().isBlank()) {
                     commonCodeUtil.getCodeDesc("RCP_UNIT", ingredient.getUnitCode().trim());
+                    if (mapper.countIngredientUnit(groupCode, ingredient.getIngredientCode().trim(),
+                            ingredient.getUnitCode().trim()) == 0) {
+                        throw badRequest("015");
+                    }
                 }
             } catch (IllegalArgumentException exception) {
                 throw badRequest("008");
