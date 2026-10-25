@@ -20,6 +20,13 @@ public class CommonCodeUtil {
     private static final String GROUP_NAME_FIELD = "GROUP_NM:";
     private static final String GROUP_ORDER_FIELD = "GROUP_ORD:";
     private static final String DETAIL_ORDER_FIELD = "DETAIL_ORD:";
+    private static final String PARENT_CODE_FIELD = "PARENT:";
+    private static final String REMARK_1_FIELD = "REMK1:";
+    private static final String REMARK_2_FIELD = "REMK2:";
+    private static final String REMARK_3_FIELD = "REMK3:";
+    private static final String REMARK_4_FIELD = "REMK4:";
+    private static final String CACHE_VERSION_FIELD = "META:VERSION";
+    private static final String CACHE_VERSION = "2";
 
     private final CommonCodeMapper mapper;
     private final RedisTemplate<String, String> redisTemplate;
@@ -105,9 +112,7 @@ public class CommonCodeUtil {
     private Map<Object, Object> ensureCache() {
         Map<Object, Object> cachedCodes = redisTemplate.opsForHash().entries(CODE_KEY);
         boolean hasCurrentFormat = cachedCodes != null
-                && cachedCodes.keySet().stream()
-                        .map(String::valueOf)
-                        .anyMatch(field -> field.startsWith(NAME_FIELD));
+                && CACHE_VERSION.equals(valueOf(cachedCodes.get(CACHE_VERSION_FIELD)));
         if (!hasCurrentFormat) {
             loadCodesToRedis();
             cachedCodes = redisTemplate.opsForHash().entries(CODE_KEY);
@@ -118,14 +123,20 @@ public class CommonCodeUtil {
     private void loadCodesToRedis() {
         List<CommonCodeVO> codes = mapper.selectActiveCodes();
         Map<String, String> cache = new LinkedHashMap<>();
+        cache.put(CACHE_VERSION_FIELD, CACHE_VERSION);
         if (codes != null) {
             for (CommonCodeVO code : codes) {
                 String key = cacheField(code.getComCd(), code.getComDtlCd());
                 cache.put(NAME_FIELD + key, code.getComDtlNm());
                 cache.put(DESCRIPTION_FIELD + key, textOf(code.getComDtlDesc()));
                 cache.put(GROUP_NAME_FIELD + key, textOf(code.getComCdNm()));
+                cache.put(PARENT_CODE_FIELD + key, textOf(code.getPrntComCd()));
                 cache.put(GROUP_ORDER_FIELD + key, stringOf(code.getComCdSortOrd()));
                 cache.put(DETAIL_ORDER_FIELD + key, stringOf(code.getSortOrd()));
+                cache.put(REMARK_1_FIELD + key, textOf(code.getRemk1()));
+                cache.put(REMARK_2_FIELD + key, textOf(code.getRemk2()));
+                cache.put(REMARK_3_FIELD + key, textOf(code.getRemk3()));
+                cache.put(REMARK_4_FIELD + key, textOf(code.getRemk4()));
             }
         }
 
@@ -148,8 +159,13 @@ public class CommonCodeUtil {
         code.setComDtlNm(valueOf(cache.get(NAME_FIELD + key)));
         code.setComDtlDesc(valueOf(cache.get(DESCRIPTION_FIELD + key)));
         code.setComCdNm(valueOf(cache.get(GROUP_NAME_FIELD + key)));
+        code.setPrntComCd(valueOf(cache.get(PARENT_CODE_FIELD + key)));
         code.setComCdSortOrd(integerOf(cache.get(GROUP_ORDER_FIELD + key)));
         code.setSortOrd(integerOf(cache.get(DETAIL_ORDER_FIELD + key)));
+        code.setRemk1(valueOf(cache.get(REMARK_1_FIELD + key)));
+        code.setRemk2(valueOf(cache.get(REMARK_2_FIELD + key)));
+        code.setRemk3(valueOf(cache.get(REMARK_3_FIELD + key)));
+        code.setRemk4(valueOf(cache.get(REMARK_4_FIELD + key)));
         return code;
     }
 

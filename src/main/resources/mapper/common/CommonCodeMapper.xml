@@ -7,9 +7,14 @@
         SELECT D.COM_CD AS "comCd"
              , M.COM_CD_NM AS "comCdNm"
              , M.SORT_ORD AS "comCdSortOrd"
+             , M.PRNT_COM_CD AS "prntComCd"
              , D.COM_DTL_CD AS "comDtlCd"
              , D.COM_DTL_NM AS "comDtlNm"
              , D.COM_DTL_DESC AS "comDtlDesc"
+             , D.REMK1 AS "remk1"
+             , D.REMK2 AS "remk2"
+             , D.REMK3 AS "remk3"
+             , D.REMK4 AS "remk4"
              , D.SORT_ORD AS "sortOrd"
           FROM moa.TB_COM_CD_DTL D
           JOIN moa.TB_COM_CD M
@@ -21,14 +26,32 @@
                 , D.COM_DTL_CD
     </select>
 
+    <!-- 상위 공통코드를 포함한 분류 계층을 재료 선택 단계에 제공합니다. -->
+    <select id="selectActiveGroups" resultType="com.buc.moa.common.code.vo.CommonCodeGroupVO">
+        SELECT M.COM_CD AS "comCd"
+             , M.COM_CD_NM AS "comCdNm"
+             , M.COM_CD_DESC AS "comCdDesc"
+             , M.PRNT_COM_CD AS "prntComCd"
+             , M.SORT_ORD AS "sortOrd"
+          FROM moa.TB_COM_CD M
+         WHERE M.USE_YN = 'Y'
+         ORDER BY M.SORT_ORD
+                , M.COM_CD
+    </select>
+
     <!-- 상세코드 한 건을 조회합니다. -->
     <select id="selectCode" resultType="com.buc.moa.common.code.vo.CommonCodeVO">
         SELECT D.COM_CD AS "comCd"
              , M.COM_CD_NM AS "comCdNm"
              , M.SORT_ORD AS "comCdSortOrd"
+             , M.PRNT_COM_CD AS "prntComCd"
              , D.COM_DTL_CD AS "comDtlCd"
              , D.COM_DTL_NM AS "comDtlNm"
              , D.COM_DTL_DESC AS "comDtlDesc"
+             , D.REMK1 AS "remk1"
+             , D.REMK2 AS "remk2"
+             , D.REMK3 AS "remk3"
+             , D.REMK4 AS "remk4"
              , D.SORT_ORD AS "sortOrd"
           FROM moa.TB_COM_CD_DTL D
           JOIN moa.TB_COM_CD M

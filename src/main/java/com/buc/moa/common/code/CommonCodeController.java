@@ -1,6 +1,7 @@
 package com.buc.moa.common.code;
 
 import com.buc.moa.common.code.vo.CommonCodeVO;
+import com.buc.moa.common.code.vo.CommonCodeGroupVO;
 import com.buc.moa.common.code.service.CommonCodeService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,12 @@ public class CommonCodeController {
     @GetMapping(value = "/all", produces = "application/json; charset=UTF-8")
     public List<CommonCodeVO> getAllCodes() {
         return commonCodeService.getAllCodes();
+    }
+
+    /** 상위 공통코드 기준으로 분류 목록을 반환합니다. */
+    @GetMapping(value = "/groups", produces = "application/json; charset=UTF-8")
+    public List<CommonCodeGroupVO> getAllGroups() {
+        return commonCodeService.getAllGroups();
     }
 
     /** DB의 사용 중 공통코드를 Redis 캐시에 다시 적재합니다. */

@@ -1,7 +1,9 @@
 package com.buc.moa.common.code.service.impl;
 
 import com.buc.moa.common.code.service.CommonCodeService;
+import com.buc.moa.common.code.mapper.CommonCodeMapper;
 import com.buc.moa.common.code.vo.CommonCodeVO;
+import com.buc.moa.common.code.vo.CommonCodeGroupVO;
 import com.buc.moa.util.CommonCodeUtil;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
@@ -16,18 +18,26 @@ import org.springframework.web.server.ResponseStatusException;
 public class CommonCodeServiceImpl implements CommonCodeService {
 
     private final CommonCodeUtil commonCodeUtil;
+    private final CommonCodeMapper commonCodeMapper;
     private final String deploymentToken;
 
     public CommonCodeServiceImpl(
             CommonCodeUtil commonCodeUtil,
+            CommonCodeMapper commonCodeMapper,
             @Value("${app.security.deploy-token:}") String deploymentToken) {
         this.commonCodeUtil = commonCodeUtil;
+        this.commonCodeMapper = commonCodeMapper;
         this.deploymentToken = deploymentToken;
     }
 
     @Override
     public List<CommonCodeVO> getAllCodes() {
         return commonCodeUtil.getAllCodes();
+    }
+
+    @Override
+    public List<CommonCodeGroupVO> getAllGroups() {
+        return commonCodeMapper.selectActiveGroups();
     }
 
     @Override
