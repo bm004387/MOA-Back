@@ -88,6 +88,31 @@
          LIMIT #{limit}
     </select>
 
+    <!-- 현재 사용자가 저장한 레시피 중 열람 가능한 건수를 조회합니다. -->
+    <select id="countSavedRecipes" resultType="long">
+        SELECT COUNT(DISTINCT P.POST_SEQ)
+          FROM moa.TB_COMM_POST_SAVE S
+          JOIN moa.TB_COMM_POST P
+            ON P.POST_SEQ = S.POST_SEQ
+          JOIN moa.TB_RCP R
+            ON R.POST_SEQ = P.POST_SEQ
+          JOIN moa.TB_USR U
+            ON U.USR_ID = P.USR_ID
+         WHERE S.USR_ID = #{usrId}
+           AND P.POST_STAT IN (#{postActive}, 'ACTIVE')
+           AND (
+                P.VIS_TYP IN (#{publicVisibility}, 'PUBLIC')
+                OR P.USR_ID = #{usrId}
+                OR EXISTS (
+                    SELECT 1
+                      FROM moa.TB_COMM_FOLLOW F
+                     WHERE F.FOLLOWER_USR_ID = #{usrId}
+                       AND F.FOLLOWING_USR_ID = P.USR_ID
+                       AND F.FOLLOW_STAT IN (#{followAccepted}, 'ACCEPTED')
+                )
+           )
+    </select>
+
     <!-- 레시피 상세 화면의 기본 정보와 반응 수를 조회합니다. -->
     <select id="selectRecipe" resultType="com.buc.moa.recipe.vo.RecipeVO">
         SELECT P.POST_SEQ AS "postSeq"

@@ -2,10 +2,12 @@ package com.buc.moa.recipe.controller;
 
 import com.buc.moa.recipe.service.RecipeService;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
+import com.buc.moa.recipe.vo.RecipeListResultVO;
 import com.buc.moa.recipe.vo.RecipeSaveRequestVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,10 +31,16 @@ public class RecipeController {
 
     /** 홈·내 레시피·저장 목록과 검색 결과를 조회합니다. */
     @GetMapping
-    public List<RecipeVO> recipes(@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+    public ResponseEntity<List<RecipeVO>> recipes(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(defaultValue = "all") String scope, @RequestParam(defaultValue = "") String query,
             @RequestParam(required = false) String categoryCode, @RequestParam(defaultValue = "50") int limit) {
-        return service.recipes(authorizationHeader, scope, query, categoryCode, limit);
+        RecipeListResultVO result = service.recipes(authorizationHeader, scope, query, categoryCode, limit);
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+        if (result.savedCount() != null) {
+            response.header("X-Saved-Count", String.valueOf(result.savedCount()));
+        }
+        return response.body(result.recipes());
     }
 
     /** 레시피 상세와 재료·조리 순서를 조회합니다. */

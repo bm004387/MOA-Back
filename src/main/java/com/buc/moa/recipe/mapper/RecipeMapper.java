@@ -14,6 +14,9 @@ public interface RecipeMapper {
     List<RecipeVO> selectRecipes(String usrId, String scope, String query, String categoryCode,
             int limit, String postActive, String publicVisibility, String followAccepted);
 
+    /** 사용자가 저장한 레시피 중 현재 조회 가능한 건수를 반환합니다. */
+    long countSavedRecipes(String usrId, String postActive, String publicVisibility, String followAccepted);
+
     /** 레시피 한 건과 사용자의 저장 여부를 반환합니다. */
     RecipeVO selectRecipe(Long postSeq, String usrId, String postActive);
 

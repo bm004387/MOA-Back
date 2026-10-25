@@ -4,6 +4,7 @@ import com.buc.moa.recipe.mapper.RecipeMapper;
 import com.buc.moa.recipe.service.RecipeService;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeIngredientCreateVO;
+import com.buc.moa.recipe.vo.RecipeListResultVO;
 import com.buc.moa.recipe.vo.RecipeStepVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import com.buc.moa.security.SessionManager;
@@ -38,7 +39,7 @@ public class RecipeServiceImpl implements RecipeService {
 
     /** Bearer 토큰을 검증하고 지정한 범위의 레시피를 조회합니다. */
     @Override
-    public List<RecipeVO> recipes(String authorizationHeader, String scope, String query, String categoryCode,
+    public RecipeListResultVO recipes(String authorizationHeader, String scope, String query, String categoryCode,
             int limit) {
         UserSession session = requireSession(authorizationHeader);
         String normalizedScope = scope == null ? "all" : scope.trim().toLowerCase();
@@ -46,10 +47,15 @@ public class RecipeServiceImpl implements RecipeService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("RECIPE", "001"));
         }
         int safeLimit = Math.max(1, Math.min(limit, MAX_LIMIT));
-        return mapper.selectRecipes(session.usrId(), normalizedScope,
+        List<RecipeVO> recipes = mapper.selectRecipes(session.usrId(), normalizedScope,
                 query == null ? "" : query.trim(),
                 categoryCode == null || categoryCode.isBlank() ? null : categoryCode.trim(), safeLimit,
                 code("POST_STAT", "ACTIVE"), code("VIS_TYP", "PUBLIC"), code("FOLLOW_STAT", "ACCEPTED"));
+        Long savedCount = "mine".equals(normalizedScope)
+                ? mapper.countSavedRecipes(session.usrId(), code("POST_STAT", "ACTIVE"),
+                        code("VIS_TYP", "PUBLIC"), code("FOLLOW_STAT", "ACCEPTED"))
+                : null;
+        return new RecipeListResultVO(recipes, savedCount);
     }
 
     /** 공개 범위와 게시 상태를 확인한 뒤 재료와 조리 순서를 포함해 반환합니다. */
