@@ -6,6 +6,7 @@ import com.buc.moa.recipe.vo.RecipeListResultVO;
 import com.buc.moa.recipe.vo.RecipeSaveRequestVO;
 import com.buc.moa.recipe.vo.RecipeIngredientUnitVO;
 import com.buc.moa.recipe.vo.RecipeVO;
+import org.springframework.http.MediaType;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /** 레시피 목록·상세·저장 API를 제공합니다. */
 @RestController
@@ -59,11 +62,20 @@ public class RecipeController {
     }
 
     /** 레시피와 재료·조리 단계를 새 게시물로 등록합니다. */
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Long> createRecipe(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestBody RecipeCreateRequestVO request) {
         return Map.of("postSeq", service.createRecipe(authorizationHeader, request));
+    }
+
+    /** 선택한 완성 사진과 레시피 내용을 함께 등록합니다. */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Long> createRecipeWithPhoto(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestParam("request") String requestJson,
+            @RequestPart(value = "finishedPhoto", required = false) MultipartFile finishedPhoto) {
+        return Map.of("postSeq", service.createRecipeWithPhoto(authorizationHeader, requestJson, finishedPhoto));
     }
 
     /** 레시피를 저장하거나 저장 취소합니다. */

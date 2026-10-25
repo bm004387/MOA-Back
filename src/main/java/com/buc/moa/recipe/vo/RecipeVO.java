@@ -22,6 +22,7 @@ public class RecipeVO {
     private String authorId;
     private String authorName;
     private Long profileImageFilSeq;
+    private Long finishedPhotoFilSeq;
     private String createdAt;
     private long likeCount;
     private long saveCount;

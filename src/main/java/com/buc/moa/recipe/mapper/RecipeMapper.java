@@ -4,6 +4,7 @@ import com.buc.moa.recipe.vo.RecipeIngredientVO;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeIngredientCreateVO;
 import com.buc.moa.recipe.vo.RecipeStepVO;
+import com.buc.moa.recipe.vo.RecipePhotoVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import java.util.List;
 
@@ -37,6 +38,9 @@ public interface RecipeMapper {
 
     /** 조리 단계를 저장합니다. */
     int insertRecipeStep(RecipeStepVO step);
+
+    /** 완성 사진을 공통 게시물 첨부 파일로 연결합니다. */
+    int insertRecipePhoto(RecipePhotoVO photo);
 
     /** 레시피의 재료 목록을 순서대로 반환합니다. */
     List<RecipeIngredientVO> selectIngredients(Long postSeq);

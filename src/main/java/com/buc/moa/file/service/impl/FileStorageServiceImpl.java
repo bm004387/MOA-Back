@@ -211,6 +211,7 @@ public class FileStorageServiceImpl implements FileStorageService {
         String value = contentType == null || contentType.isBlank()
                 ? "application/octet-stream"
                 : contentType;
+        if ("image/jpg".equalsIgnoreCase(value)) value = "image/jpeg";
         try {
             return commonCodeUtil.getDetailCode("CONT_TYP", value);
         } catch (IllegalArgumentException exception) {

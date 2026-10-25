@@ -1,18 +1,22 @@
 package com.buc.moa.recipe.service.impl;
 
 import com.buc.moa.common.code.vo.CommonCodeVO;
+import com.buc.moa.file.service.FileStorageService;
 import com.buc.moa.recipe.mapper.RecipeMapper;
 import com.buc.moa.recipe.service.RecipeService;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeIngredientCreateVO;
 import com.buc.moa.recipe.vo.RecipeIngredientUnitVO;
 import com.buc.moa.recipe.vo.RecipeListResultVO;
+import com.buc.moa.recipe.vo.RecipePhotoVO;
 import com.buc.moa.recipe.vo.RecipeStepVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import com.buc.moa.security.SessionManager;
 import com.buc.moa.security.UserSession;
 import com.buc.moa.util.CommonCodeUtil;
 import com.buc.moa.util.MsgUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +26,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 /** 레시피 조회와 저장 업무 규칙을 구현합니다. */
@@ -33,13 +38,16 @@ public class RecipeServiceImpl implements RecipeService {
     private final SessionManager sessionManager;
     private final CommonCodeUtil commonCodeUtil;
     private final MsgUtil msgUtil;
+    private final FileStorageService fileStorage;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public RecipeServiceImpl(RecipeMapper mapper, SessionManager sessionManager,
-            CommonCodeUtil commonCodeUtil, MsgUtil msgUtil) {
+            CommonCodeUtil commonCodeUtil, MsgUtil msgUtil, FileStorageService fileStorage) {
         this.mapper = mapper;
         this.sessionManager = sessionManager;
         this.commonCodeUtil = commonCodeUtil;
         this.msgUtil = msgUtil;
+        this.fileStorage = fileStorage;
     }
 
     /** Bearer 토큰을 검증하고 지정한 범위의 레시피를 조회합니다. */
@@ -160,6 +168,59 @@ public class RecipeServiceImpl implements RecipeService {
             requireInserted(mapper.insertRecipeStep(step), "레시피 조리 순서를 저장하지 못했습니다.");
         }
         return request.getPostSeq();
+    }
+
+    /** JSON 레시피 본문과 완성 사진을 하나의 트랜잭션으로 등록합니다. */
+    @Override
+    @Transactional
+    public Long createRecipeWithPhoto(String authorizationHeader, String requestJson, MultipartFile finishedPhoto) {
+        if (requestJson == null || requestJson.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("COMMON", "023"));
+        }
+
+        RecipeCreateRequestVO request;
+        try {
+            request = objectMapper.readValue(requestJson, RecipeCreateRequestVO.class);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("COMMON", "023"), exception);
+        }
+
+        UserSession session = requireSession(authorizationHeader);
+        if (finishedPhoto != null && !finishedPhoto.isEmpty()) {
+            String contentType = finishedPhoto.getContentType();
+            String normalizedType = "image/jpg".equalsIgnoreCase(contentType) ? "image/jpeg" : contentType;
+            String registeredType;
+            try {
+                registeredType = commonCodeUtil.getCodeNameByValue("CONT_TYP",
+                        normalizedType == null ? "" : normalizedType.toLowerCase());
+            } catch (IllegalArgumentException exception) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("FILE", "005"), exception);
+            }
+            if (!registeredType.startsWith("image/")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("FILE", "005"));
+            }
+        }
+
+        Long postSeq = createRecipe(authorizationHeader, request);
+        if (finishedPhoto == null || finishedPhoto.isEmpty()) return postSeq;
+
+        Long filSeq = fileStorage.store(finishedPhoto, "003", "001", session.usrId());
+        try {
+            RecipePhotoVO photo = new RecipePhotoVO();
+            photo.setPostSeq(postSeq);
+            photo.setFilSeq(filSeq);
+            photo.setMediaType(code("MEDIA_TYP", "IMAGE"));
+            photo.setSystemUserId(session.usrId());
+            requireInserted(mapper.insertRecipePhoto(photo), "완성 사진을 레시피에 연결하지 못했습니다.");
+        } catch (RuntimeException exception) {
+            try {
+                fileStorage.delete(filSeq);
+            } catch (RuntimeException cleanupException) {
+                exception.addSuppressed(cleanupException);
+            }
+            throw exception;
+        }
+        return postSeq;
     }
 
     /** 레시피 접근 권한을 검증하고 저장 상태를 반영합니다. */

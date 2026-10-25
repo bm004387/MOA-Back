@@ -16,6 +16,7 @@
              , P.USR_ID AS "authorId"
              , U.NCK_NM AS "authorName"
              , U.PRFL_IMG_FIL_SEQ AS "profileImageFilSeq"
+             , FINISHED_PHOTO.FIL_SEQ AS "finishedPhotoFilSeq"
              , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS "createdAt"
              , (SELECT COUNT(*)
                   FROM moa.TB_COMM_POST_LIKE L
@@ -41,6 +42,20 @@
           LEFT JOIN moa.TB_COM_CD_DTL DF
             ON DF.COM_CD = 'RCP_DIF'
            AND DF.COM_DTL_CD = R.RCP_DIF_CD
+          LEFT JOIN LATERAL (
+                SELECT PF.FIL_SEQ
+                  FROM moa.TB_COMM_POST_FILE PF
+                  JOIN moa.FIL_DTL FD
+                    ON FD.FIL_SEQ = PF.FIL_SEQ
+                  JOIN moa.TB_COM_CD_DTL MIME
+                    ON MIME.COM_CD = 'CONT_TYP'
+                   AND MIME.COM_DTL_CD = FD.CONT_TYP
+                   AND MIME.USE_YN = 'Y'
+                 WHERE PF.POST_SEQ = P.POST_SEQ
+                   AND LOWER(MIME.COM_DTL_NM) LIKE 'image/%'
+                 ORDER BY PF.SORT_ORD
+                 LIMIT 1
+          ) FINISHED_PHOTO ON TRUE
          WHERE P.POST_STAT IN (#{postActive}, 'ACTIVE')
            AND (
                 P.VIS_TYP IN (#{publicVisibility}, 'PUBLIC')
@@ -127,6 +142,7 @@
              , P.USR_ID AS "authorId"
              , U.NCK_NM AS "authorName"
              , U.PRFL_IMG_FIL_SEQ AS "profileImageFilSeq"
+             , FINISHED_PHOTO.FIL_SEQ AS "finishedPhotoFilSeq"
              , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS "createdAt"
              , (SELECT COUNT(*)
                   FROM moa.TB_COMM_POST_LIKE L
@@ -152,6 +168,20 @@
           LEFT JOIN moa.TB_COM_CD_DTL DF
             ON DF.COM_CD = 'RCP_DIF'
            AND DF.COM_DTL_CD = R.RCP_DIF_CD
+          LEFT JOIN LATERAL (
+                SELECT PF.FIL_SEQ
+                  FROM moa.TB_COMM_POST_FILE PF
+                  JOIN moa.FIL_DTL FD
+                    ON FD.FIL_SEQ = PF.FIL_SEQ
+                  JOIN moa.TB_COM_CD_DTL MIME
+                    ON MIME.COM_CD = 'CONT_TYP'
+                   AND MIME.COM_DTL_CD = FD.CONT_TYP
+                   AND MIME.USE_YN = 'Y'
+                 WHERE PF.POST_SEQ = P.POST_SEQ
+                   AND LOWER(MIME.COM_DTL_NM) LIKE 'image/%'
+                 ORDER BY PF.SORT_ORD
+                 LIMIT 1
+          ) FINISHED_PHOTO ON TRUE
          WHERE P.POST_SEQ = #{postSeq}
            AND P.POST_STAT IN (#{postActive}, 'ACTIVE')
     </select>
@@ -259,6 +289,24 @@
             , #{cookSec}
             , #{stepFilSeq}
             , #{frstRegUserId}
+        )
+    </insert>
+
+    <!-- 레시피 완성 사진을 게시물 첨부 파일 테이블에 연결합니다. -->
+    <insert id="insertRecipePhoto">
+        INSERT INTO moa.TB_COMM_POST_FILE (
+            POST_SEQ
+            , FIL_SEQ
+            , SORT_ORD
+            , MEDIA_TYP
+            , FRST_REG_USER_ID
+        )
+        VALUES (
+            #{postSeq}
+            , #{filSeq}
+            , 1
+            , #{mediaType}
+            , #{systemUserId}
         )
     </insert>
 
