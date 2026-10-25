@@ -6,6 +6,7 @@ import com.buc.moa.recipe.mapper.RecipeMapper;
 import com.buc.moa.recipe.service.RecipeService;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeIngredientCreateVO;
+import com.buc.moa.recipe.vo.RecipeIngredientVO;
 import com.buc.moa.recipe.vo.RecipeIngredientUnitVO;
 import com.buc.moa.recipe.vo.RecipeListResultVO;
 import com.buc.moa.recipe.vo.RecipePhotoVO;
@@ -223,6 +224,143 @@ public class RecipeServiceImpl implements RecipeService {
         return postSeq;
     }
 
+    /** 작성자 본인 확인 후 레시피 본문·분류·재료·조리 단계를 한 트랜잭션으로 수정합니다. */
+    @Override
+    @Transactional
+    public void updateRecipe(String authorizationHeader, Long postSeq, RecipeCreateRequestVO request) {
+        UserSession session = requireSession(authorizationHeader);
+        if (request == null || request.getTitle() == null || request.getTitle().isBlank()) {
+            throw badRequest("003");
+        }
+        if (mapper.countOwnedRecipe(postSeq, session.usrId(), code("POST_STAT", "ACTIVE")) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, msgUtil.getMsg("RECIPE", "002"));
+        }
+        List<RecipeIngredientVO> savedIngredients = mapper.selectIngredients(postSeq);
+        List<RecipeStepVO> savedSteps = mapper.selectSteps(postSeq);
+
+        request.setPostSeq(postSeq);
+        request.setUsrId(session.usrId());
+        request.setSystemUserId(session.usrId());
+        request.setTitle(request.getTitle().trim());
+        request.setDescription(request.getDescription() == null ? "" : request.getDescription().trim());
+        request.setCategoryCode(resolveCategoryCode(request.getCategoryCode(), request.getCategory()));
+        request.setCookingMinutes(request.getCookingMinutes() == null ? 20 : request.getCookingMinutes());
+        request.setServings(request.getServings() == null ? 2 : request.getServings());
+        request.setDifficultyCode(resolveDifficultyCode(request.getDifficultyCode()));
+
+        if (request.getCookingMinutes() < 1 || request.getServings() < 1) {
+            throw badRequest("005");
+        }
+
+        List<RecipeIngredientCreateVO> ingredients = request.getIngredients();
+        if (ingredients == null || ingredients.isEmpty()) {
+            throw badRequest("006");
+        }
+        prepareIngredients(ingredients, postSeq, session.usrId());
+
+        List<RecipeStepVO> steps = parseSteps(request.getSteps(), postSeq, session.usrId());
+        if (steps.isEmpty()) {
+            throw badRequest("012");
+        }
+        preserveStepMetadata(steps, savedSteps);
+
+        requireInserted(mapper.updateRecipePost(request), "레시피 게시물을 수정하지 못했습니다.");
+        requireInserted(mapper.updateRecipe(request), "레시피 정보를 수정하지 못했습니다.");
+        if (!sameIngredients(ingredients, savedIngredients)) {
+            mapper.deleteRecipeIngredients(postSeq);
+            for (RecipeIngredientCreateVO ingredient : ingredients) {
+                requireInserted(mapper.insertRecipeIngredient(ingredient), "레시피 재료를 수정하지 못했습니다.");
+            }
+        }
+        if (!sameStepContents(steps, savedSteps)) {
+            mapper.deleteRecipeSteps(postSeq);
+            for (RecipeStepVO step : steps) {
+                requireInserted(mapper.insertRecipeStep(step), "레시피 조리 순서를 수정하지 못했습니다.");
+            }
+        }
+    }
+
+    /** 작성자 본인의 레시피와 선택한 새 완성 사진을 하나의 트랜잭션으로 수정합니다. */
+    @Override
+    @Transactional
+    public void updateRecipeWithPhoto(String authorizationHeader, Long postSeq, String requestJson,
+            MultipartFile finishedPhoto) {
+        if (requestJson == null || requestJson.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("COMMON", "023"));
+        }
+
+        RecipeCreateRequestVO request;
+        try {
+            request = objectMapper.readValue(requestJson, RecipeCreateRequestVO.class);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("COMMON", "023"), exception);
+        }
+
+        UserSession session = requireSession(authorizationHeader);
+        updateRecipe(authorizationHeader, postSeq, request);
+        if (finishedPhoto == null || finishedPhoto.isEmpty()) return;
+
+        String contentType = finishedPhoto.getContentType();
+        String normalizedType = "image/jpg".equalsIgnoreCase(contentType) ? "image/jpeg" : contentType;
+        String registeredType;
+        try {
+            registeredType = commonCodeUtil.getCodeNameByValue("CONT_TYP",
+                    normalizedType == null ? "" : normalizedType.toLowerCase());
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("FILE", "005"), exception);
+        }
+        if (!registeredType.startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msgUtil.getMsg("FILE", "005"));
+        }
+
+        Long filSeq = fileStorage.store(finishedPhoto, "003", "001", session.usrId());
+        try {
+            RecipePhotoVO photo = new RecipePhotoVO();
+            photo.setPostSeq(postSeq);
+            photo.setFilSeq(filSeq);
+            photo.setMediaType(code("MEDIA_TYP", "IMAGE"));
+            photo.setSystemUserId(session.usrId());
+            int updatedRows = mapper.updateRecipePhoto(photo);
+            if (updatedRows == 0) {
+                requireInserted(mapper.insertRecipePhoto(photo), "완성 사진을 레시피에 연결하지 못했습니다.");
+            }
+        } catch (RuntimeException exception) {
+            try {
+                fileStorage.delete(filSeq);
+            } catch (RuntimeException cleanupException) {
+                exception.addSuppressed(cleanupException);
+            }
+            throw exception;
+        }
+    }
+
+    /** 작성자 본인의 레시피를 삭제 상태로 바꿔 저장·검색·피드에서 제외합니다. */
+    @Override
+    @Transactional
+    public void deleteRecipe(String authorizationHeader, Long postSeq) {
+        UserSession session = requireSession(authorizationHeader);
+        String activeStatus = code("POST_STAT", "ACTIVE");
+        if (mapper.deleteRecipe(postSeq, session.usrId(), activeStatus, code("POST_STAT", "DELETED")) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, msgUtil.getMsg("RECIPE", "002"));
+        }
+    }
+
+    /** 읽을 수 있는 레시피에 대해 사용자의 좋아요 상태를 추가하거나 취소합니다. */
+    @Override
+    @Transactional
+    public void setLiked(String authorizationHeader, Long postSeq, boolean enabled) {
+        UserSession session = requireSession(authorizationHeader);
+        if (mapper.canReadRecipe(postSeq, session.usrId(), code("POST_STAT", "ACTIVE"),
+                code("VIS_TYP", "PUBLIC"), code("FOLLOW_STAT", "ACCEPTED")) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, msgUtil.getMsg("RECIPE", "002"));
+        }
+        if (enabled) {
+            mapper.addLike(postSeq, session.usrId());
+        } else {
+            mapper.removeLike(postSeq, session.usrId());
+        }
+    }
+
     /** 레시피 접근 권한을 검증하고 저장 상태를 반영합니다. */
     @Override
     @Transactional
@@ -348,6 +486,7 @@ public class RecipeServiceImpl implements RecipeService {
             ingredient.setIngredientGroupCode(groupCode);
             ingredient.setIngredientCode(ingredient.getIngredientCode().trim());
             ingredient.setUnitCode(blankToNull(ingredient.getUnitCode()));
+            ingredient.setNote(blankToNull(ingredient.getNote()));
             ingredient.setPostSeq(postSeq);
             ingredient.setSortOrd(sortOrd++);
             ingredient.setSystemUserId(usrId);
@@ -373,6 +512,55 @@ public class RecipeServiceImpl implements RecipeService {
             steps.add(step);
         }
         return steps;
+    }
+
+    /** 재료 내용이 바뀌지 않은 경우 하위 행을 다시 만들지 않아 기존 시스템 컬럼을 보존합니다. */
+    private boolean sameIngredients(List<RecipeIngredientCreateVO> requested, List<RecipeIngredientVO> saved) {
+        if (requested.size() != saved.size()) return false;
+        for (int index = 0; index < requested.size(); index++) {
+            RecipeIngredientCreateVO next = requested.get(index);
+            RecipeIngredientVO current = saved.get(index);
+            if (!java.util.Objects.equals(next.getIngredientGroupCode(), current.getIngredientGroupCode())
+                    || !java.util.Objects.equals(next.getIngredientCode(), current.getIngredientCode())
+                    || !java.util.Objects.equals(next.getUnitCode(), current.getUnitCode())
+                    || !java.util.Objects.equals(blankToNull(next.getNote()), blankToNull(current.getNote()))
+                    || !sameAmount(next.getIngrAmt(), current.getIngrAmt())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 줄바꿈으로 전달된 조리 순서가 기존 내용과 동일한지 확인합니다. */
+    private boolean sameStepContents(List<RecipeStepVO> requested, List<RecipeStepVO> saved) {
+        if (requested.size() != saved.size()) return false;
+        for (int index = 0; index < requested.size(); index++) {
+            if (!java.util.Objects.equals(requested.get(index).getContent(), saved.get(index).getContent())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 문구가 유지된 조리 단계의 시간과 사진 연결을 수정 후에도 유지합니다. */
+    private void preserveStepMetadata(List<RecipeStepVO> requested, List<RecipeStepVO> saved) {
+        boolean[] matched = new boolean[saved.size()];
+        for (RecipeStepVO next : requested) {
+            for (int index = 0; index < saved.size(); index++) {
+                RecipeStepVO current = saved.get(index);
+                if (!matched[index] && java.util.Objects.equals(next.getContent(), current.getContent())) {
+                    next.setCookSec(current.getCookSec());
+                    next.setStepFilSeq(current.getStepFilSeq());
+                    matched[index] = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    /** 수량 값의 스케일 차이를 무시하고 실제 값이 같은지 확인합니다. */
+    private boolean sameAmount(BigDecimal left, BigDecimal right) {
+        return left == null ? right == null : right != null && left.compareTo(right) == 0;
     }
 
     private boolean isIngredientGroup(String groupCode) {

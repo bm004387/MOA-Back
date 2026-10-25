@@ -22,8 +22,18 @@
                   FROM moa.TB_COMM_POST_LIKE L
                  WHERE L.POST_SEQ = P.POST_SEQ) AS "likeCount"
              , (SELECT COUNT(*)
+                  FROM moa.TB_COMM_CMT C
+                 WHERE C.POST_SEQ = P.POST_SEQ
+                   AND C.CMT_STAT = 'ACTIVE') AS "commentCount"
+             , (SELECT COUNT(*)
                   FROM moa.TB_COMM_POST_SAVE S
                  WHERE S.POST_SEQ = P.POST_SEQ) AS "saveCount"
+             , EXISTS (
+                   SELECT 1
+                     FROM moa.TB_COMM_POST_LIKE L
+                    WHERE L.POST_SEQ = P.POST_SEQ
+                      AND L.USR_ID = #{usrId}
+               ) AS "likedByMe"
              , EXISTS (
                    SELECT 1
                      FROM moa.TB_COMM_POST_SAVE S
@@ -148,8 +158,18 @@
                   FROM moa.TB_COMM_POST_LIKE L
                  WHERE L.POST_SEQ = P.POST_SEQ) AS "likeCount"
              , (SELECT COUNT(*)
+                  FROM moa.TB_COMM_CMT C
+                 WHERE C.POST_SEQ = P.POST_SEQ
+                   AND C.CMT_STAT = 'ACTIVE') AS "commentCount"
+             , (SELECT COUNT(*)
                   FROM moa.TB_COMM_POST_SAVE S
                  WHERE S.POST_SEQ = P.POST_SEQ) AS "saveCount"
+             , EXISTS (
+                   SELECT 1
+                     FROM moa.TB_COMM_POST_LIKE L
+                    WHERE L.POST_SEQ = P.POST_SEQ
+                      AND L.USR_ID = #{usrId}
+               ) AS "likedByMe"
              , EXISTS (
                    SELECT 1
                      FROM moa.TB_COMM_POST_SAVE S
@@ -214,6 +234,90 @@
             , #{frstRegUserId}
         )
     </insert>
+
+    <!-- 로그인 사용자가 작성한 활성 레시피인지 확인합니다. -->
+    <select id="countOwnedRecipe" resultType="int">
+        SELECT COUNT(*)
+          FROM moa.TB_COMM_POST P
+          JOIN moa.TB_RCP R
+            ON R.POST_SEQ = P.POST_SEQ
+         WHERE P.POST_SEQ = #{postSeq}
+           AND P.USR_ID = #{usrId}
+           AND P.POST_STAT IN (#{postActive}, 'ACTIVE')
+    </select>
+
+    <!-- 레시피 제목과 소개를 작성자 본인 요청으로 수정합니다. -->
+    <update id="updateRecipePost">
+        UPDATE moa.TB_COMM_POST
+           SET POST_TTL = #{title}
+             , POST_CN = #{description}
+             , LAST_MOD_USER_ID = #{lastModUserId}
+             , LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
+         WHERE POST_SEQ = #{postSeq}
+           AND USR_ID = #{usrId}
+    </update>
+
+    <!-- 레시피 분류와 조리 정보를 작성자 본인 요청으로 수정합니다. -->
+    <update id="updateRecipe">
+        UPDATE moa.TB_RCP
+           SET RCP_CTG_CD = #{categoryCode}
+             , COOK_MIN = #{cookingMinutes}
+             , SERV_QTY = #{servings}
+             , RCP_DIF_CD = #{difficultyCode}
+             , LAST_MOD_USER_ID = #{lastModUserId}
+             , LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
+         WHERE POST_SEQ = #{postSeq}
+    </update>
+
+    <!-- 레시피 재료를 새 입력 순서대로 다시 저장하기 전에 지웁니다. -->
+    <delete id="deleteRecipeIngredients">
+        DELETE FROM moa.TB_RCP_INGR
+         WHERE POST_SEQ = #{postSeq}
+    </delete>
+
+    <!-- 레시피 조리 단계를 새 입력 순서대로 다시 저장하기 전에 지웁니다. -->
+    <delete id="deleteRecipeSteps">
+        DELETE FROM moa.TB_RCP_STP
+         WHERE POST_SEQ = #{postSeq}
+    </delete>
+
+    <!-- 작성자 본인의 레시피를 삭제 상태로 바꾸고 수정 이력을 기록합니다. -->
+    <update id="deleteRecipe">
+        UPDATE moa.TB_COMM_POST P
+           SET POST_STAT = #{postDeleted}
+             , LAST_MOD_USER_ID = #{usrId}
+             , LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
+         WHERE P.POST_SEQ = #{postSeq}
+           AND P.USR_ID = #{usrId}
+           AND P.POST_STAT IN (#{postActive}, 'ACTIVE')
+           AND EXISTS (
+                SELECT 1
+                  FROM moa.TB_RCP R
+                 WHERE R.POST_SEQ = P.POST_SEQ
+           )
+    </update>
+
+    <!-- 로그인 사용자의 레시피 좋아요를 중복 없이 저장합니다. -->
+    <insert id="addLike">
+        INSERT INTO moa.TB_COMM_POST_LIKE (
+            POST_SEQ
+            , USR_ID
+            , FRST_REG_USER_ID
+        )
+        VALUES (
+            #{postSeq}
+            , #{usrId}
+            , #{usrId}
+        )
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <!-- 로그인 사용자의 레시피 좋아요를 취소합니다. -->
+    <delete id="removeLike">
+        DELETE FROM moa.TB_COMM_POST_LIKE
+         WHERE POST_SEQ = #{postSeq}
+           AND USR_ID = #{usrId}
+    </delete>
 
     <!-- 게시물의 분류·조리 시간·인분·난이도를 저장합니다. -->
     <insert id="insertRecipe">
@@ -313,6 +417,17 @@
             , TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
         )
     </insert>
+
+    <!-- 레시피의 대표 완성 사진을 새 파일로 교체합니다. -->
+    <update id="updateRecipePhoto">
+        UPDATE moa.TB_COMM_POST_FILE
+           SET FIL_SEQ = #{filSeq}
+             , MEDIA_TYP = #{mediaType}
+             , LAST_MOD_USER_ID = #{lastModUserId}
+             , LAST_MOD_DTM = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
+         WHERE POST_SEQ = #{postSeq}
+           AND SORT_ORD = 1
+    </update>
 
     <!-- 레시피 재료와 단위 설명을 정렬 순서대로 조회합니다. -->
     <select id="selectIngredients" resultType="com.buc.moa.recipe.vo.RecipeIngredientVO">

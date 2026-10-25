@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-/** 레시피 목록·상세·저장 API를 제공합니다. */
+/** 레시피 목록·상세·작성·수정·삭제와 반응 API를 제공합니다. */
 @RestController
 @RequestMapping("/api/recipes")
 public class RecipeController {
@@ -76,6 +77,43 @@ public class RecipeController {
             @RequestParam("request") String requestJson,
             @RequestPart(value = "finishedPhoto", required = false) MultipartFile finishedPhoto) {
         return Map.of("postSeq", service.createRecipeWithPhoto(authorizationHeader, requestJson, finishedPhoto));
+    }
+
+    /** 작성자 본인의 레시피 본문·재료·조리 단계를 수정합니다. */
+    @PutMapping(value = "/{postSeq}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Boolean> updateRecipe(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long postSeq, @RequestBody RecipeCreateRequestVO request) {
+        service.updateRecipe(authorizationHeader, postSeq, request);
+        return Map.of("success", true);
+    }
+
+    /** 새 완성 사진을 선택한 경우 사진과 레시피 본문을 함께 수정합니다. */
+    @PutMapping(value = "/{postSeq}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Boolean> updateRecipeWithPhoto(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long postSeq, @RequestParam("request") String requestJson,
+            @RequestPart(value = "finishedPhoto", required = false) MultipartFile finishedPhoto) {
+        service.updateRecipeWithPhoto(authorizationHeader, postSeq, requestJson, finishedPhoto);
+        return Map.of("success", true);
+    }
+
+    /** 작성자 본인의 레시피를 삭제 상태로 변경합니다. */
+    @DeleteMapping("/{postSeq}")
+    public Map<String, Boolean> deleteRecipe(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long postSeq) {
+        service.deleteRecipe(authorizationHeader, postSeq);
+        return Map.of("success", true);
+    }
+
+    /** 로그인 사용자의 레시피 좋아요 상태를 변경합니다. */
+    @PutMapping("/{postSeq}/like")
+    public Map<String, Boolean> setLiked(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long postSeq, @RequestBody RecipeSaveRequestVO request) {
+        service.setLiked(authorizationHeader, postSeq, request.isEnabled());
+        return Map.of("success", true);
     }
 
     /** 레시피를 저장하거나 저장 취소합니다. */

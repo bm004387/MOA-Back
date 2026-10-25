@@ -42,6 +42,33 @@ public interface RecipeMapper {
     /** 완성 사진을 공통 게시물 첨부 파일로 연결합니다. */
     int insertRecipePhoto(RecipePhotoVO photo);
 
+    /** 레시피에 등록된 완성 사진을 새 파일로 바꿉니다. */
+    int updateRecipePhoto(RecipePhotoVO photo);
+
+    /** 로그인 사용자가 작성한 활성 레시피인지 확인합니다. */
+    int countOwnedRecipe(Long postSeq, String usrId, String postActive);
+
+    /** 레시피 게시물의 제목과 소개를 수정합니다. */
+    int updateRecipePost(RecipeCreateRequestVO request);
+
+    /** 레시피 분류와 조리 정보를 수정합니다. */
+    int updateRecipe(RecipeCreateRequestVO request);
+
+    /** 기존 레시피 재료를 수정하기 전에 제거합니다. */
+    int deleteRecipeIngredients(Long postSeq);
+
+    /** 기존 레시피 조리 순서를 수정하기 전에 제거합니다. */
+    int deleteRecipeSteps(Long postSeq);
+
+    /** 작성자 본인의 레시피를 삭제 상태로 변경합니다. */
+    int deleteRecipe(Long postSeq, String usrId, String postActive, String postDeleted);
+
+    /** 레시피를 좋아요 목록에 추가합니다. */
+    int addLike(Long postSeq, String usrId);
+
+    /** 레시피 좋아요를 취소합니다. */
+    int removeLike(Long postSeq, String usrId);
+
     /** 레시피의 재료 목록을 순서대로 반환합니다. */
     List<RecipeIngredientVO> selectIngredients(Long postSeq);
 

@@ -26,6 +26,19 @@ public interface RecipeService {
     /** 완성 사진을 포함해 레시피를 등록합니다. */
     Long createRecipeWithPhoto(String authorizationHeader, String requestJson, MultipartFile finishedPhoto);
 
+    /** 작성자 본인의 레시피 본문·재료·조리 순서를 수정합니다. */
+    void updateRecipe(String authorizationHeader, Long postSeq, RecipeCreateRequestVO request);
+
+    /** 작성자 본인의 레시피와 선택한 완성 사진을 함께 수정합니다. */
+    void updateRecipeWithPhoto(String authorizationHeader, Long postSeq, String requestJson,
+            MultipartFile finishedPhoto);
+
+    /** 작성자 본인의 레시피를 삭제 상태로 변경합니다. */
+    void deleteRecipe(String authorizationHeader, Long postSeq);
+
+    /** 로그인 사용자의 레시피 좋아요 상태를 변경합니다. */
+    void setLiked(String authorizationHeader, Long postSeq, boolean enabled);
+
     /** 로그인 사용자의 레시피 저장 상태를 변경합니다. */
     void setSaved(String authorizationHeader, Long postSeq, boolean enabled);
 }

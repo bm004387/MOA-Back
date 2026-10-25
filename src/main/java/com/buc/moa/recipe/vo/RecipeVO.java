@@ -25,7 +25,9 @@ public class RecipeVO {
     private Long finishedPhotoFilSeq;
     private String createdAt;
     private long likeCount;
+    private long commentCount;
     private long saveCount;
+    private boolean likedByMe;
     private boolean savedByMe;
     private boolean mine;
     private List<RecipeIngredientVO> ingredients = new ArrayList<>();
