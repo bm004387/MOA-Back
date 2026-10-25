@@ -4,6 +4,7 @@
 
     <!-- 사용자가 열람할 수 있는 레시피를 검색·범위·분류 조건으로 조회합니다. -->
     <select id="selectRecipes" resultType="com.buc.moa.recipe.vo.RecipeVO">
+        WITH ranked_recipes AS MATERIALIZED (
         SELECT P.POST_SEQ AS "postSeq"
              , P.POST_TTL AS "title"
              , P.POST_CN AS "description"
@@ -16,31 +17,14 @@
              , P.USR_ID AS "authorId"
              , U.NCK_NM AS "authorName"
              , U.PRFL_IMG_FIL_SEQ AS "profileImageFilSeq"
-             , FINISHED_PHOTO.FIL_SEQ AS "finishedPhotoFilSeq"
              , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS "createdAt"
-             , (SELECT COUNT(*)
-                  FROM moa.TB_COMM_POST_LIKE L
-                 WHERE L.POST_SEQ = P.POST_SEQ) AS "likeCount"
-             , (SELECT COUNT(*)
-                  FROM moa.TB_COMM_CMT C
-                 WHERE C.POST_SEQ = P.POST_SEQ
-                   AND C.CMT_STAT = 'ACTIVE') AS "commentCount"
-             , (SELECT COUNT(*)
-                  FROM moa.TB_COMM_POST_SAVE S
-                 WHERE S.POST_SEQ = P.POST_SEQ) AS "saveCount"
-             , EXISTS (
-                   SELECT 1
-                     FROM moa.TB_COMM_POST_LIKE L
-                    WHERE L.POST_SEQ = P.POST_SEQ
-                      AND L.USR_ID = #{usrId}
-               ) AS "likedByMe"
-             , EXISTS (
-                   SELECT 1
-                     FROM moa.TB_COMM_POST_SAVE S
-                    WHERE S.POST_SEQ = P.POST_SEQ
-                      AND S.USR_ID = #{usrId}
-               ) AS "savedByMe"
+             , LIKE_STATS.LIKE_COUNT AS "likeCount"
+             , COMMENT_STATS.COMMENT_COUNT AS "commentCount"
+             , SAVE_STATS.SAVE_COUNT AS "saveCount"
+             , LIKE_STATS.LIKED_BY_ME AS "likedByMe"
+             , SAVE_STATS.SAVED_BY_ME AS "savedByMe"
              , (P.USR_ID = #{usrId}) AS "mine"
+             , P.POST_DTM AS order_dtm
           FROM moa.TB_COMM_POST P
           JOIN moa.TB_RCP R
             ON R.POST_SEQ = P.POST_SEQ
@@ -53,20 +37,29 @@
             ON DF.COM_CD = 'RCP_DIF'
            AND DF.COM_DTL_CD = R.RCP_DIF_CD
           LEFT JOIN LATERAL (
-                SELECT PF.FIL_SEQ
-                  FROM moa.TB_COMM_POST_FILE PF
-                  JOIN moa.FIL_DTL FD
-                    ON FD.FIL_SEQ = PF.FIL_SEQ
-                  JOIN moa.TB_COM_CD_DTL MIME
-                    ON MIME.COM_CD = 'CONT_TYP'
-                   AND MIME.COM_DTL_CD = FD.CONT_TYP
-                   AND MIME.USE_YN = 'Y'
-                 WHERE PF.POST_SEQ = P.POST_SEQ
-                   AND LOWER(MIME.COM_DTL_NM) LIKE 'image/%'
-                 ORDER BY PF.SORT_ORD
-                 LIMIT 1
-          ) FINISHED_PHOTO ON TRUE
+                SELECT COUNT(*) AS LIKE_COUNT
+                     , COALESCE(BOOL_OR(L.USR_ID = #{usrId}), FALSE) AS LIKED_BY_ME
+                  FROM moa.TB_COMM_POST_LIKE L
+                 WHERE L.POST_SEQ = P.POST_SEQ
+          ) LIKE_STATS ON TRUE
+          LEFT JOIN LATERAL (
+                SELECT COUNT(*) AS COMMENT_COUNT
+                  FROM moa.TB_COMM_CMT C
+                 WHERE C.POST_SEQ = P.POST_SEQ
+                   AND C.CMT_STAT = 'ACTIVE'
+          ) COMMENT_STATS ON TRUE
+          LEFT JOIN LATERAL (
+                SELECT COUNT(*) AS SAVE_COUNT
+                     , (COUNT(*) FILTER (WHERE S.USR_ID = #{usrId}) > 0) AS SAVED_BY_ME
+                  FROM moa.TB_COMM_POST_SAVE S
+                 WHERE S.POST_SEQ = P.POST_SEQ
+          ) SAVE_STATS ON TRUE
          WHERE P.POST_STAT IN (#{postActive}, 'ACTIVE')
+        <choose>
+            <when test="scope == 'mine'">
+           AND P.USR_ID = #{usrId}
+            </when>
+            <otherwise>
            AND (
                 P.VIS_TYP IN (#{publicVisibility}, 'PUBLIC')
                 OR P.USR_ID = #{usrId}
@@ -78,25 +71,22 @@
                        AND F.FOLLOW_STAT IN (#{followAccepted}, 'ACCEPTED')
                 )
            )
-           AND (
-                #{scope} = 'all'
-                OR (#{scope} = 'mine' AND P.USR_ID = #{usrId})
-                OR (
-                    #{scope} = 'saved'
-                    AND EXISTS (
-                        SELECT 1
-                          FROM moa.TB_COMM_POST_SAVE S
-                         WHERE S.POST_SEQ = P.POST_SEQ
-                           AND S.USR_ID = #{usrId}
-                    )
-                )
+            </otherwise>
+        </choose>
+        <if test="scope == 'saved'">
+           AND EXISTS (
+                SELECT 1
+                  FROM moa.TB_COMM_POST_SAVE SAVED
+                 WHERE SAVED.USR_ID = #{usrId}
+                   AND SAVED.POST_SEQ = P.POST_SEQ
            )
+        </if>
         <if test="categoryCode != null and categoryCode != ''">
            AND R.RCP_CTG_CD = #{categoryCode}
         </if>
+        <if test="query != null and query != ''">
            AND (
-                #{query} = ''
-                OR P.POST_TTL ILIKE '%' || #{query} || '%'
+                P.POST_TTL ILIKE '%' || #{query} || '%'
                 OR P.POST_CN ILIKE '%' || #{query} || '%'
                 OR EXISTS (
                     SELECT 1
@@ -105,12 +95,50 @@
                        AND RI.INGR_NM_SNAP ILIKE '%' || #{query} || '%'
                 )
            )
+        </if>
          ORDER BY (P.USR_ID = #{usrId}) DESC
-                , (SELECT COUNT(*)
-                     FROM moa.TB_COMM_POST_SAVE S
-                    WHERE S.POST_SEQ = P.POST_SEQ) DESC
+                , SAVE_STATS.SAVE_COUNT DESC
                 , P.POST_DTM DESC
          LIMIT #{limit}
+        )
+        SELECT R."postSeq" AS "postSeq"
+             , R."title" AS "title"
+             , R."description" AS "description"
+             , R."categoryCode" AS "categoryCode"
+             , R."categoryName" AS "categoryName"
+             , R."cookingMinutes" AS "cookingMinutes"
+             , R."servings" AS "servings"
+             , R."difficultyCode" AS "difficultyCode"
+             , R."difficultyName" AS "difficultyName"
+             , R."authorId" AS "authorId"
+             , R."authorName" AS "authorName"
+             , R."profileImageFilSeq" AS "profileImageFilSeq"
+             , FINISHED_PHOTO.FIL_SEQ AS "finishedPhotoFilSeq"
+             , R."createdAt" AS "createdAt"
+             , R."likeCount" AS "likeCount"
+             , R."commentCount" AS "commentCount"
+             , R."saveCount" AS "saveCount"
+             , R."likedByMe" AS "likedByMe"
+             , R."savedByMe" AS "savedByMe"
+             , R."mine" AS "mine"
+          FROM ranked_recipes R
+          LEFT JOIN LATERAL (
+                SELECT PF.FIL_SEQ
+                  FROM moa.TB_COMM_POST_FILE PF
+                  JOIN moa.FIL_DTL FD
+                    ON FD.FIL_SEQ = PF.FIL_SEQ
+                  JOIN moa.TB_COM_CD_DTL MIME
+                    ON MIME.COM_CD = 'CONT_TYP'
+                   AND MIME.COM_DTL_CD = FD.CONT_TYP
+                   AND MIME.USE_YN = 'Y'
+                 WHERE PF.POST_SEQ = R."postSeq"
+                   AND LOWER(MIME.COM_DTL_NM) LIKE 'image/%'
+                 ORDER BY PF.SORT_ORD
+                 LIMIT 1
+          ) FINISHED_PHOTO ON TRUE
+         ORDER BY R."mine" DESC
+                , R."saveCount" DESC
+                , R.order_dtm DESC
     </select>
 
     <!-- 현재 사용자가 저장한 레시피 중 열람 가능한 건수를 조회합니다. -->
