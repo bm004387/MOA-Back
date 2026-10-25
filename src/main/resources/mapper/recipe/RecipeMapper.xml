@@ -300,13 +300,17 @@
             , SORT_ORD
             , MEDIA_TYP
             , FRST_REG_USER_ID
+            , LAST_MOD_USER_ID
+            , LAST_MOD_DTM
         )
         VALUES (
             #{postSeq}
             , #{filSeq}
             , 1
             , #{mediaType}
-            , #{systemUserId}
+            , #{frstRegUserId}
+            , #{lastModUserId}
+            , TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')
         )
     </insert>
 
