@@ -1,5 +1,6 @@
 package com.buc.moa.recipe.service.impl;
 
+import com.buc.moa.common.code.vo.CommonCodeVO;
 import com.buc.moa.recipe.mapper.RecipeMapper;
 import com.buc.moa.recipe.service.RecipeService;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
@@ -14,7 +15,10 @@ import com.buc.moa.util.CommonCodeUtil;
 import com.buc.moa.util.MsgUtil;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,11 +80,39 @@ public class RecipeServiceImpl implements RecipeService {
         return recipe;
     }
 
-    /** 로그인 세션을 확인하고 사용 중인 재료-계량 단위 연결을 반환합니다. */
+    /** 로그인 세션을 확인하고 재료 공통코드 비고1에 등록된 계량 단위를 반환합니다. */
     @Override
     public List<RecipeIngredientUnitVO> ingredientUnits(String authorizationHeader) {
         requireSession(authorizationHeader);
-        return mapper.selectIngredientUnits();
+        List<CommonCodeVO> codes = commonCodeUtil.getAllCodes();
+        Set<String> activeUnitCodes = codes.stream()
+                .filter(item -> "RCP_UNIT".equalsIgnoreCase(item.getComCd()))
+                .map(CommonCodeVO::getComDtlCd)
+                .collect(Collectors.toSet());
+        List<RecipeIngredientUnitVO> mappings = new ArrayList<>();
+
+        for (CommonCodeVO ingredientCode : codes) {
+            if (!isIngredientGroup(ingredientCode.getComCd())
+                    || ingredientCode.getRemk1() == null || ingredientCode.getRemk1().isBlank()) {
+                continue;
+            }
+
+            int sortOrd = 1;
+            for (String unitCode : ingredientCode.getRemk1().split("\\|")) {
+                String normalizedUnitCode = unitCode.trim();
+                if (normalizedUnitCode.isEmpty() || !activeUnitCodes.contains(normalizedUnitCode)) {
+                    continue;
+                }
+
+                RecipeIngredientUnitVO mapping = new RecipeIngredientUnitVO();
+                mapping.setIngredientGroupCode(ingredientCode.getComCd());
+                mapping.setIngredientCode(ingredientCode.getComDtlCd());
+                mapping.setUnitCode(normalizedUnitCode);
+                mapping.setSortOrd(sortOrd++);
+                mappings.add(mapping);
+            }
+        }
+        return mappings;
     }
 
     /** 레시피·재료·조리 단계를 한 트랜잭션으로 저장하고 게시물 일련번호를 반환합니다. */
@@ -219,8 +251,8 @@ public class RecipeServiceImpl implements RecipeService {
                         ingredient.getIngredientCode().trim()));
                 if (ingredient.getUnitCode() != null && !ingredient.getUnitCode().isBlank()) {
                     commonCodeUtil.getCodeDesc("RCP_UNIT", ingredient.getUnitCode().trim());
-                    if (mapper.countIngredientUnit(groupCode, ingredient.getIngredientCode().trim(),
-                            ingredient.getUnitCode().trim()) == 0) {
+                    if (!isUnitAllowed(groupCode, ingredient.getIngredientCode().trim(),
+                            ingredient.getUnitCode().trim())) {
                         throw badRequest("015");
                     }
                 }
@@ -285,8 +317,21 @@ public class RecipeServiceImpl implements RecipeService {
     private boolean isIngredientGroup(String groupCode) {
         return "RCP_INGR".equals(groupCode)
                 || "INGR".equals(groupCode)
+                || groupCode.startsWith("CP_INGR_")
                 || groupCode.startsWith("RCP_INGR_")
                 || groupCode.startsWith("INGR_");
+    }
+
+    /** 재료 상세코드의 비고1에 파이프(|)로 등록된 단위인지 확인합니다. */
+    private boolean isUnitAllowed(String ingredientGroupCode, String ingredientCode, String unitCode) {
+        return commonCodeUtil.getAllCodes().stream()
+                .filter(item -> ingredientGroupCode.equalsIgnoreCase(item.getComCd()))
+                .filter(item -> ingredientCode.equals(item.getComDtlCd()))
+                .map(CommonCodeVO::getRemk1)
+                .filter(value -> value != null && !value.isBlank())
+                .flatMap(value -> Arrays.stream(value.split("\\|")))
+                .map(String::trim)
+                .anyMatch(unitCode::equals);
     }
 
     private boolean matches(String value, String candidate) {

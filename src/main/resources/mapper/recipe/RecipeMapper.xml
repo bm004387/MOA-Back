@@ -214,58 +214,6 @@
          ORDER BY I.INGR_SEQ
     </select>
 
-    <!-- 사용 중인 재료와 단위 공통코드가 모두 활성화된 재료별 계량 단위를 조회합니다. -->
-    <select id="selectIngredientUnits" resultType="com.buc.moa.recipe.vo.RecipeIngredientUnitVO">
-        SELECT M.INGR_COM_CD AS "ingredientGroupCode"
-             , M.INGR_DTL_CD AS "ingredientCode"
-             , M.UNIT_CD AS "unitCode"
-             , M.SORT_ORD AS "sortOrd"
-          FROM moa.TB_RCP_INGR_UNIT M
-          JOIN moa.TB_COM_CD IC
-            ON IC.COM_CD = M.INGR_COM_CD
-           AND IC.USE_YN = 'Y'
-          JOIN moa.TB_COM_CD_DTL ID
-            ON ID.COM_CD = M.INGR_COM_CD
-           AND ID.COM_DTL_CD = M.INGR_DTL_CD
-           AND ID.USE_YN = 'Y'
-          JOIN moa.TB_COM_CD UC
-            ON UC.COM_CD = 'RCP_UNIT'
-           AND UC.USE_YN = 'Y'
-          JOIN moa.TB_COM_CD_DTL UD
-            ON UD.COM_CD = 'RCP_UNIT'
-           AND UD.COM_DTL_CD = M.UNIT_CD
-           AND UD.USE_YN = 'Y'
-         WHERE M.USE_YN = 'Y'
-         ORDER BY M.INGR_COM_CD
-                , M.INGR_DTL_CD
-                , M.SORT_ORD
-                , M.UNIT_CD
-    </select>
-
-    <!-- 저장 요청에서 재료에 허용된 활성 계량 단위인지 확인합니다. -->
-    <select id="countIngredientUnit" resultType="int">
-        SELECT COUNT(*)
-          FROM moa.TB_RCP_INGR_UNIT M
-          JOIN moa.TB_COM_CD IC
-            ON IC.COM_CD = M.INGR_COM_CD
-           AND IC.USE_YN = 'Y'
-          JOIN moa.TB_COM_CD_DTL ID
-            ON ID.COM_CD = M.INGR_COM_CD
-           AND ID.COM_DTL_CD = M.INGR_DTL_CD
-           AND ID.USE_YN = 'Y'
-          JOIN moa.TB_COM_CD UC
-            ON UC.COM_CD = 'RCP_UNIT'
-           AND UC.USE_YN = 'Y'
-          JOIN moa.TB_COM_CD_DTL UD
-            ON UD.COM_CD = 'RCP_UNIT'
-           AND UD.COM_DTL_CD = M.UNIT_CD
-           AND UD.USE_YN = 'Y'
-         WHERE M.USE_YN = 'Y'
-           AND M.INGR_COM_CD = #{ingredientGroupCode}
-           AND M.INGR_DTL_CD = #{ingredientCode}
-           AND M.UNIT_CD = #{unitCode}
-    </select>
-
     <!-- 재료 공통코드와 표시용 이름, 수량·계량 단위를 저장합니다. -->
     <insert id="insertRecipeIngredient">
         INSERT INTO moa.TB_RCP_INGR (

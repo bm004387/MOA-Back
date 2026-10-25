@@ -3,7 +3,6 @@ package com.buc.moa.recipe.mapper;
 import com.buc.moa.recipe.vo.RecipeIngredientVO;
 import com.buc.moa.recipe.vo.RecipeCreateRequestVO;
 import com.buc.moa.recipe.vo.RecipeIngredientCreateVO;
-import com.buc.moa.recipe.vo.RecipeIngredientUnitVO;
 import com.buc.moa.recipe.vo.RecipeStepVO;
 import com.buc.moa.recipe.vo.RecipeVO;
 import java.util.List;
@@ -32,12 +31,6 @@ public interface RecipeMapper {
 
     /** 사용 중인 재료명에 대응하는 재료 마스터 일련번호를 조회합니다. */
     List<Long> selectIngredientSeqs(String ingredientName);
-
-    /** 재료별로 등록된 사용 가능한 계량 단위 연결을 조회합니다. */
-    List<RecipeIngredientUnitVO> selectIngredientUnits();
-
-    /** 재료와 선택한 계량 단위의 연결 여부를 확인합니다. */
-    int countIngredientUnit(String ingredientGroupCode, String ingredientCode, String unitCode);
 
     /** 코드 기반 재료와 계량 정보를 저장합니다. */
     int insertRecipeIngredient(RecipeIngredientCreateVO ingredient);
