@@ -12,7 +12,7 @@ public interface RecipeService {
 
     /** 인증된 사용자 기준으로 레시피 목록을 조회합니다. */
     RecipeListResultVO recipes(String authorizationHeader, String scope, String query, String categoryCode,
-            int limit);
+            String authorId, int limit);
 
     /** 인증된 사용자가 열람할 수 있는 레시피를 조회합니다. */
     RecipeVO recipe(String authorizationHeader, Long postSeq);

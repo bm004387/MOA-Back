@@ -13,7 +13,7 @@ public interface RecipeMapper {
 
     /** 조회 범위와 검색 조건에 맞는 레시피를 반환합니다. */
     List<RecipeVO> selectRecipes(String usrId, String scope, String query, String categoryCode,
-            int limit, String postActive, String publicVisibility, String followAccepted);
+            String authorId, int limit, String postActive, String publicVisibility, String followAccepted);
 
     /** 사용자가 저장한 레시피 중 현재 조회 가능한 건수를 반환합니다. */
     long countSavedRecipes(String usrId, String postActive, String publicVisibility, String followAccepted);

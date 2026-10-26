@@ -61,6 +61,9 @@
            )
             </otherwise>
         </choose>
+        <if test="authorId != null and authorId != ''">
+           AND P.USR_ID = #{authorId}
+        </if>
         <if test="categoryCode != null and categoryCode != ''">
            AND R.RCP_CTG_CD = #{categoryCode}
         </if>

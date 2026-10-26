@@ -54,7 +54,7 @@ public class RecipeServiceImpl implements RecipeService {
     /** Bearer 토큰을 검증하고 지정한 범위의 레시피를 조회합니다. */
     @Override
     public RecipeListResultVO recipes(String authorizationHeader, String scope, String query, String categoryCode,
-            int limit) {
+            String authorId, int limit) {
         UserSession session = requireSession(authorizationHeader);
         String normalizedScope = scope == null ? "all" : scope.trim().toLowerCase();
         if (!List.of("all", "mine", "saved").contains(normalizedScope)) {
@@ -63,7 +63,8 @@ public class RecipeServiceImpl implements RecipeService {
         int safeLimit = Math.max(1, Math.min(limit, MAX_LIMIT));
         List<RecipeVO> recipes = mapper.selectRecipes(session.usrId(), normalizedScope,
                 query == null ? "" : query.trim(),
-                categoryCode == null || categoryCode.isBlank() ? null : categoryCode.trim(), safeLimit,
+                categoryCode == null || categoryCode.isBlank() ? null : categoryCode.trim(),
+                authorId == null || authorId.isBlank() ? null : authorId.trim(), safeLimit,
                 code("POST_STAT", "ACTIVE"), code("VIS_TYP", "PUBLIC"), code("FOLLOW_STAT", "ACCEPTED"));
         Long savedCount = "mine".equals(normalizedScope)
                 ? mapper.countSavedRecipes(session.usrId(), code("POST_STAT", "ACTIVE"),

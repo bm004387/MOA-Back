@@ -36,11 +36,11 @@ public class RecipeController {
 
     /** 홈·내 레시피·저장 목록과 검색 결과를 조회합니다. */
     @GetMapping
-    public ResponseEntity<List<RecipeVO>> recipes(
-            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+    public ResponseEntity<List<RecipeVO>> recipes(@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(defaultValue = "all") String scope, @RequestParam(defaultValue = "") String query,
-            @RequestParam(required = false) String categoryCode, @RequestParam(defaultValue = "50") int limit) {
-        RecipeListResultVO result = service.recipes(authorizationHeader, scope, query, categoryCode, limit);
+            @RequestParam(required = false) String categoryCode, @RequestParam(required = false) String authorId,
+            @RequestParam(defaultValue = "50") int limit) {
+        RecipeListResultVO result = service.recipes(authorizationHeader, scope, query, categoryCode, authorId, limit);
         ResponseEntity.BodyBuilder response = ResponseEntity.ok();
         if (result.savedCount() != null) {
             response.header("X-Saved-Count", String.valueOf(result.savedCount()));
