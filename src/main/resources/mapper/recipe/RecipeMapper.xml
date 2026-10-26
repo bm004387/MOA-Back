@@ -18,6 +18,9 @@
              , U.NCK_NM AS "authorName"
              , U.PRFL_IMG_FIL_SEQ AS "profileImageFilSeq"
              , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS "createdAt"
+             , CASE WHEN P.LAST_MOD_DTM IS NOT NULL
+                    THEN TO_CHAR(TO_TIMESTAMP(P.LAST_MOD_DTM, 'YYYYMMDDHH24MISS'), 'YYYY-MM-DD"T"HH24:MI:SS')
+               END AS "updatedAt"
              , SAVE_STATS.SAVE_COUNT AS "saveCount"
              , (P.USR_ID = #{usrId}) AS "mine"
              , P.POST_DTM AS order_dtm
@@ -98,6 +101,7 @@
              , R."profileImageFilSeq" AS "profileImageFilSeq"
              , FINISHED_PHOTO.FIL_SEQ AS "finishedPhotoFilSeq"
              , R."createdAt" AS "createdAt"
+             , R."updatedAt" AS "updatedAt"
              , LIKE_STATS.LIKE_COUNT AS "likeCount"
              , COMMENT_STATS.COMMENT_COUNT AS "commentCount"
              , R."saveCount" AS "saveCount"
@@ -182,6 +186,9 @@
              , U.PRFL_IMG_FIL_SEQ AS "profileImageFilSeq"
              , FINISHED_PHOTO.FIL_SEQ AS "finishedPhotoFilSeq"
              , TO_CHAR(P.POST_DTM, 'YYYY-MM-DD"T"HH24:MI:SS') AS "createdAt"
+             , CASE WHEN P.LAST_MOD_DTM IS NOT NULL
+                    THEN TO_CHAR(TO_TIMESTAMP(P.LAST_MOD_DTM, 'YYYYMMDDHH24MISS'), 'YYYY-MM-DD"T"HH24:MI:SS')
+               END AS "updatedAt"
              , (SELECT COUNT(*)
                   FROM moa.TB_COMM_POST_LIKE L
                  WHERE L.POST_SEQ = P.POST_SEQ) AS "likeCount"
